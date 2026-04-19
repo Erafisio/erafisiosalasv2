@@ -1,0 +1,2297 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>FisioSalas Pro v6.4.1 - Gestão Integrada Cloud + Clientes</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        :root {
+            --bg: #f8f9fa; --surface: #ffffff; --surface2: #f1f3f5;
+            --primary: #185FA5; --secondary: #3B6D11; --danger: #A32D2D;
+            --warning: #f39c12; --info: #3498db;
+            --text: #212529; --text-muted: #6c757d;
+            --border: #dee2e6; --radius: 8px;
+            --sala1: #B5D4F4; --sala2: #C0DD97; --sala3: #FAC775; --sala4: #F4C0D1;
+            --sala5: #D1C0F4; --sala6: #C0F4F1; --sala7: #F4E7C0; --sala8: #E2F4C0;
+        }
+        [data-theme="dark"] {
+            --bg: #1a1a1a; --surface: #2d2d2d; --surface2: #3d3d3d;
+            --text: #f8f9fa; --text-muted: #adb5bd; --border: #4d4d4d;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); transition: 0.3s; min-height: 100vh; display: flex; flex-direction: column; }
+        .container { max-width: 1300px; margin: 0 auto; padding: 15px; flex: 1; width: 100%; }
+        
+        #cloud-status { position: fixed; top: 10px; right: 10px; z-index: 10001; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; display: none; color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .sync-active { display: block !important; background: var(--warning); animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        .room-occupancy-badge { font-size: 10px; background: var(--surface2); padding: 2px 6px; border-radius: 10px; border: 1px solid var(--border); margin-left: 5px; font-weight: normal; }
+        .header { background: var(--surface); padding: 20px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .header-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px; }
+        
+        .stats-bar { display: flex; gap: 20px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); overflow-x: auto; }
+        .stat-item { display: flex; flex-direction: column; min-width: 130px; }
+        .stat-val { font-size: 18px; font-weight: bold; color: var(--primary); }
+        .stat-lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+        
+        .main-nav { display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap; }
+        .nav-btn { padding: 10px 20px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; border-radius: 6px; font-weight: 500; }
+        .nav-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        
+        .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 500; font-size: 14px; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--secondary); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-print { background: #495057; color: white; }
+        .btn-help { background: #6c757d; color: white; }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; padding: 10px; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--surface); width: 100%; max-width: 950px; border-radius: 12px; max-height: 95vh; overflow-y: auto; padding: 25px; position: relative; }
+        
+        .tab-nav { display: flex; gap: 10px; border-bottom: 2px solid var(--border); margin-bottom: 15px; overflow-x: auto; }
+        .tab-btn { padding: 10px; border: none; background: none; cursor: pointer; color: var(--text-muted); border-bottom: 3px solid transparent; font-weight: bold; white-space: nowrap; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        .grid-wrapper { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; font-size: 13px; }
+        th, td { border: 1px solid var(--border); padding: 10px; text-align: center; }
+        th { background: var(--surface2); position: sticky; top: 0; z-index: 5; }
+        
+        .slot-booked { padding: 6px; border-radius: 6px; font-size: 11px; cursor: pointer; position: relative; min-height: 50px; display: flex; flex-direction: column; justify-content: center; color: #000; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid rgba(0,0,0,0.2); transition: transform 0.1s; }
+        .slot-booked:hover { transform: scale(1.02); }
+        .slot-booked.highlight { border: 3px solid var(--warning); box-shadow: 0 0 10px var(--warning); z-index: 10; }
+        .slot-booked .patient-name { font-style: italic; font-size: 10px; opacity: 0.8; margin-top: 2px; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 2px; }
+        .status-tag { position: absolute; bottom: 2px; right: 2px; font-size: 8px; padding: 1px 4px; border-radius: 3px; background: rgba(255,255,255,0.5); }
+        .delete-btn { position: absolute; top: 2px; right: 2px; background: var(--danger); color: white; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.7; }
+        .delete-btn:hover { opacity: 1; }
+
+        .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); margin-top: 5px; }
+        .footer-copyright { text-align: center; padding: 20px; font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--border); background: var(--surface); margin-top: auto; }
+
+        .help-section { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
+        .help-section h4 { color: var(--primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .help-section ul { margin-left: 20px; margin-top: 10px; }
+        .help-section li { margin-bottom: 5px; font-size: 14px; }
+        .help-section p { font-size: 14px; line-height: 1.6; margin-bottom: 8px; }
+
+        .search-box { position: relative; flex: 1; min-width: 250px; }
+        .search-box input { padding-left: 35px; }
+        .search-box::before { content: '🔍'; position: absolute; left: 10px; top: 15px; font-size: 14px; z-index: 1; }
+        
+        #debug-panel { position: fixed; bottom: 10px; left: 10px; background: #000; color: #0f0; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 11px; max-width: 400px; max-height: 200px; overflow-y: auto; z-index: 9999; display: none; }
+        
+        .empty-day-msg { text-align: center; padding: 30px; color: var(--text-muted); font-size: 15px; margin-bottom: 15px; }
+        .empty-day-msg strong { color: var(--primary); display: block; margin-bottom: 8px; font-size: 17px; }
+
+        /* ESTILOS MODULO CLIENTE */
+        .cliente-search-results { max-height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; margin-top: 5px; background: var(--surface); display: none; }
+        .cliente-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        .cliente-item:hover { background: var(--surface2); }
+        .cliente-item strong { color: var(--primary); }
+        .cliente-item span { font-size: 11px; color: var(--text-muted); }
+        .cliente-info-box { margin-top: 8px; padding: 8px 12px; background: var(--surface2); border-radius: 6px; display: none; align-items: center; gap: 10px; border-left: 4px solid var(--secondary); }
+        .cliente-info-box.active { display: flex; }
+        .novo-cliente-box { display: none; margin-top: 10px; padding: 12px; border: 1px dashed var(--primary); border-radius: 6px; background: #f0f8ff; }
+        .novo-cliente-box.active { display: block; }
+        .tag-paciente { display: inline-block; background: var(--secondary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; margin-left: 5px; vertical-align: middle; }
+        
+        /* Checkbox estilizado */
+        .checkbox-group { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+        .checkbox-item { display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--surface2); border-radius: 6px; border: 1px solid var(--border); }
+        .checkbox-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+        .checkbox-item label { cursor: pointer; font-size: 14px; }
+        .prof-list-container { max-height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 10px; background: var(--bg); margin-top: 8px; }
+    </style>
+</head>
+<body>
+<div id="cloud-status">☁️ SINCRONIZANDO...</div>
+<div id="debug-panel"></div>
+
+<div class="container">
+    <header class="header">
+        <div class="header-top">
+            <div>
+                <h1 style="font-size: 24px;">FisioSalas <span style="font-size: 12px; font-weight: normal; opacity: 0.6;">v6.4.1 PRO (CLOUD + CLIENTES)</span></h1>
+                <p style="font-size: 13px; color: var(--text-muted);">Todos os direitos reservados (Edison.Apparecido * 2026)</p>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn btn-help" onclick="openModal('modal-help')">❓ Ajuda</button>
+                <button class="btn btn-print" onclick="window.print()">🖨️ Imprimir</button>
+                <button class="btn btn-outline" onclick="fetchFromCloud(true)">🔄 Sincronizar</button>
+                <button class="btn btn-outline" onclick="openModal('modal-export')">📤 Relatórios</button>
+                <button class="btn btn-success" onclick="openModal('modal-prof')">Profissionais</button>
+                <button class="btn btn-success" onclick="openModal('modal-cliente')">👥 Clientes</button>
+                <button class="btn btn-primary" onclick="openModal('modal-cliente-relatorio')">📋 Histórico Clientes</button>
+                <button class="btn btn-primary" onclick="openAdmin()">Admin</button>
+                <button onclick="toggleDebug()" class="btn btn-outline" style="font-size:12px">🔧</button>
+                <button onclick="toggleTheme()" class="btn btn-outline" style="font-size:18px">🌓</button>
+            </div>
+        </div>
+        <div class="stats-bar" id="stats-container">
+            <div class="stat-item"><span class="stat-val" id="stat-total-profs">0</span><span class="stat-lbl">Profissionais</span></div>
+            <div class="stat-item"><span class="stat-val" id="stat-books-today">0</span><span class="stat-lbl">Reservas Hoje</span></div>
+            <div class="stat-item"><span class="stat-val" id="stat-hours-month" style="color: var(--secondary);">0h</span><span class="stat-lbl">Horas Mês</span></div>
+        </div>
+    </header>
+
+    <nav class="main-nav">
+        <button class="nav-btn active" id="btn-view-dia" onclick="changeView('dia')">Visão Diária</button>
+        <button class="nav-btn" id="btn-view-semana" onclick="changeView('semana')">Semanal</button>
+        <button class="nav-btn" id="btn-view-lista" onclick="changeView('lista')">Lista</button>
+    </nav>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <button class="btn btn-outline" onclick="changeDate(-1)">←</button>
+            <input type="date" id="date-picker" class="form-control" style="width: 165px; margin:0;" onchange="updateDate(this.value)">
+            <button class="btn btn-outline" onclick="changeDate(1)">→</button>
+            <button class="btn btn-outline" onclick="goToday()">Hoje</button>
+            <div class="search-box">
+                <input type="text" id="search-prof" class="form-control" placeholder="Buscar profissional..." oninput="filterGrid(this.value)">
+            </div>
+        </div>
+        <h3 id="current-label" style="font-size: 16px; color: var(--primary); font-weight: 600;"></h3>
+    </div>
+
+    <div class="grid-wrapper" id="main-content">
+        <p style="padding:40px; text-align:center; color:var(--text-muted);">Carregando dados da nuvem...</p>
+    </div>
+</div>
+<!-- MODAL HELP -->
+<div id="modal-help" class="modal">
+    <div class="modal-content" style="max-width: 850px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid var(--primary); padding-bottom: 10px;">
+            <h3>Central de Ajuda & Manual Completo v6.4.1</h3>
+            <button class="btn btn-outline" onclick="closeModal('modal-help')">✕</button>
+        </div>
+        <div style="max-height: 70vh; overflow-y: auto;">
+            <div class="help-section">
+                <h4>📅 1. Navegação e Grade Diária</h4>
+                <p>A tela principal mostra a grade de horários das salas. Cada coluna representa uma sala e cada linha um horário (das 7h às 21h).</p>
+                <ul>
+                    <li>Clique no símbolo <strong>+</strong> em um slot vazio para criar uma nova reserva.</li>
+                    <li>Clique em uma reserva existente para editar seus detalhes.</li>
+                    <li>Use o campo de busca para destacar os horários de um profissional específico.</li>
+                    <li>O percentual de ocupação de cada sala aparece no cabeçalho da coluna.</li>
+                    <li>Use as <strong>setas ← →</strong> ou o <strong>calendário</strong> para navegar entre datas.</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h4>📝 2. Criação de Reservas</h4>
+                <p>Preencha os campos ao criar uma nova reserva:</p>
+                <ul>
+                    <li><strong>Profissional:</strong> Selecione o fisioterapeuta responsável.</li>
+                    <li><strong>Paciente:</strong> Busque por celular (000-00000-0000) ou cadastre novo.</li>
+                    <li><strong>Sala:</strong> Escolha a sala desejada.</li>
+                    <li><strong>Status:</strong> Confirmado (conta para faturamento), Pendente, Finalizado ou Falta.</li>
+                    <li><strong>Horário:</strong> Defina início e término.</li>
+                    <li><strong>Recorrência:</strong> Marque a opção para agendar automaticamente nas próximas semanas (2 a 20 semanas), sempre no mesmo dia da semana.</li>
+                    <li><strong>Segundo Profissional:</strong> Disponível apenas na sala Pilates. Permite compartilhar a reserva com outro profissional.</li>
+                    <li><strong>Observações:</strong> Registre o histórico do atendimento (fica salvo no prontuário do paciente).</li>
+                    <li><strong>Autenticação:</strong> Informe sua senha pessoal ou a senha do Administrador para salvar.</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h4>🔐 3. Segurança e Permissões</h4>
+                <ul>
+                    <li><strong>Edição:</strong> Apenas o criador da reserva ou o Administrador podem editar (é solicitada a senha).</li>
+                    <li><strong>Exclusão:</strong> Apenas o criador ou o Administrador podem excluir. Todas as exclusões são registradas no log de auditoria com data, horário, quem excluiu e IP.</li>
+                    <li><strong>Senha Master:</strong> Necessária para cadastrar, editar ou excluir profissionais.</li>
+                    <li><strong>Senha Administrativa:</strong> Necessária para acessar o painel administrativo.</li>
+                    <li><strong>Cadastro de Pacientes:</strong> Apenas o profissional que cadastrou ou admin pode editar/excluir. Pacientes podem ter múltiplos profissionais vinculados.</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h4>👥 4. Módulo de Pacientes</h4>
+                <p>Ao criar uma reserva, você pode:</p>
+                <ul>
+                    <li>Buscar um paciente cadastrado pelo <strong>celular</strong> (formato: 000-00000-0000).</li>
+                    <li>Se encontrar, o nome é preenchido automaticamente (sempre em MAIÚSCULAS).</li>
+                    <li>Se não encontrar, cadastre o paciente rapidamente sem sair da tela.</li>
+                    <li>O sistema pergunta se o paciente também é atendido por outros profissionais.</li>
+                    <li>O campo <strong>Observações</strong> vira o Histórico do Atendimento.</li>
+                    <li>Use o botão <strong>📋 Histórico Clientes</strong> para ver o prontuário completo.</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h4>☁️ 5. Sincronização e Cloud</h4>
+                <ul>
+                    <li>O botão <strong>🔄 Sincronizar</strong> busca os dados mais recentes da nuvem (Google Sheets).</li>
+                    <li>Se aparecer <strong>"OFFLINE"</strong>, verifique sua internet ou tente novamente em alguns segundos.</li>
+                    <li>Os dados são salvos automaticamente no navegador também, para consulta offline.</li>
+                    <li>Todos os dispositivos conectados visualizam os mesmos dados após a sincronização.</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h4>📤 6. Relatórios e Exportação</h4>
+                <ul>
+                    <li>Clique em <strong>📤 Relatórios</strong> para gerar listagens.</li>
+                    <li>Escolha o período: Hoje, Mês Atual ou Geral.</li>
+                    <li>Filtre por sala específica ou todas.</li>
+                    <li>Use <strong>Gerar Prévia</strong> para visualizar antes de baixar.</li>
+                    <li>Clique em <strong>📥 Baixar PDF</strong> para salvar o relatório em arquivo.</li>
+                    <li>Use <strong>📋 Histórico Clientes</strong> para exportar o prontuário do paciente.</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h4>🖨️ 7. Impressão</h4>
+                <ul>
+                    <li>Use o botão <strong>🖨️ Imprimir</strong> no topo para imprimir a tela atual.</li>
+                    <li>Recomendado usar no navegador Chrome para melhor formatação da grade.</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h4>🔧 8. Administração (Acesso Restrito)</h4>
+                <ul>
+                    <li><strong>Rateio:</strong> Visualize horas e faturamento por profissional.</li>
+                    <li><strong>Dashboard:</strong> Estatísticas de ocupação, clientes, faltas e uso.</li>
+                    <li><strong>Auditoria:</strong> Log completo de criações e exclusões.</li>
+                    <li><strong>Config. Salas:</strong> Cadastre, edite ou remova salas e valores por hora.</li>
+                    <li><strong>Backup:</strong> Exporte todos os dados em JSON ou restaure de um arquivo anterior.</li>
+                </ul>
+            </div>
+            <div class="help-section" style="border-bottom:none; margin-bottom:0;">
+                <h4>💡 Dicas Rápidas</h4>
+                <ul>
+                    <li>🌓 Use o botão de tema para alternar entre modo claro e escuro.</li>
+                    <li>🔧 O botão de ferramentas ativa o painel de diagnóstico técnico (para suporte).</li>
+                    <li>Se algo não carregar, pressione <strong>F5</strong> ou clique em Sincronizar.</li>
+                </ul>
+            </div>
+        </div>
+        <button class="btn btn-primary" style="width:100%; margin-top:20px;" onclick="closeModal('modal-help')">Fechar Ajuda</button>
+    </div>
+</div>
+<!-- MODAL BOOKING -->
+<div id="modal-booking" class="modal">
+    <div class="modal-content" style="max-width: 650px;">
+        <h3 id="book-title">Nova Reserva</h3>
+        <div style="margin-top:15px; display: grid; gap: 12px;">
+            <div><label>Fisioterapeuta</label><select id="f-prof" class="form-control" onchange="updateBookingValueDisplay()"></select></div>
+            
+            <div>
+                <label>Buscar Paciente (Celular)</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="f-cliente-search" class="form-control" placeholder="000-00000-0000" oninput="formatCelular(this); searchClienteReserva(this.value)" style="flex:1;" maxlength="14">
+                    <button type="button" class="btn btn-outline" onclick="limparBuscaClienteReserva()">Limpar</button>
+                </div>
+                <div id="cliente-search-results" class="cliente-search-results"></div>
+                <input type="hidden" id="f-cliente-id">
+                <div class="cliente-info-box" id="cliente-info-display">
+                    <div>
+                        <div style="font-weight: bold; color: var(--primary);" id="cliente-nome-display"></div>
+                        <div style="font-size: 12px; color: var(--text-muted);" id="cliente-fone-display"></div>
+                    </div>
+                </div>
+                <div class="novo-cliente-box" id="novo-cliente-form">
+                    <p style="font-size: 12px; color: var(--primary); font-weight: bold; margin-bottom: 8px;">Paciente não cadastrado. Complete para continuar:</p>
+                    <label>Nome Completo (será salvo em MAIÚSCULAS)</label>
+                    <input type="text" id="f-novo-cliente-nome" class="form-control" placeholder="Digite o nome do paciente..." oninput="this.value = this.value.toUpperCase()">
+                    
+                    <div style="margin-top: 12px; padding: 10px; background: #fff8e1; border-radius: 6px; border: 1px solid #ffcc80;">
+                        <label style="font-weight: bold; color: var(--warning); display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="f-outro-prof-check" onchange="toggleOutrosProfs(this.checked)">
+                            Este paciente também é atendido por outro(s) profissional(is)?
+                        </label>
+                        <div id="outros-profs-container" style="display: none; margin-top: 10px;">
+                            <label style="font-size: 12px; color: var(--text-muted);">Selecione os profissionais:</label>
+                            <div id="outros-profs-list" class="prof-list-container"></div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-success" style="width:100%; margin-top:12px;" onclick="cadastrarClienteRapido()">💾 Cadastrar e Continuar</button>
+                </div>
+                <input type="hidden" id="f-patient">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div><label>Sala</label><select id="f-sala" class="form-control" onchange="updateBookingValueDisplay()"></select></div>
+                <div><label>Status</label><select id="f-status" class="form-control">
+                    <option value="confirmado">✅ Confirmado</option>
+                    <option value="pendente">⏳ Pendente</option>
+                    <option value="finalizado">🏁 Finalizado</option>
+                    <option value="falta">❌ Falta</option>
+                </select></div>
+            </div>
+            <div id="shared-section" style="display:none;">
+                <label>Segundo Profissional (Pilates)</label>
+                <select id="f-segundo-prof" class="form-control"></select>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div><label>Início</label><select id="f-start" class="form-control"></select></div>
+                <div><label>Término</label><select id="f-end" class="form-control"></select></div>
+            </div>
+            <div><label>Data</label><input type="date" id="f-date" class="form-control"></div>
+            <div style="margin-top:10px; padding:10px; background:#f0f8ff; border-radius:6px;">
+                <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+                    <input type="checkbox" id="f-recurrent" onchange="toggleRecurrent(this.checked)"> 
+                    Agendamento Recorrente (2-20 semanas)
+                </label>
+                <div id="recurrent-options" style="display:none; margin-top:8px;">
+                    <label>Quantidade:</label>
+                    <select id="f-recurrent-weeks" class="form-control"></select>
+                </div>
+            </div>
+            <div>
+                <label>Observações / Histórico do Atendimento</label>
+                <textarea id="f-obs" class="form-control" rows="3" placeholder="Registre aqui o histórico clínico, evolução ou observações deste atendimento..."></textarea>
+                <small style="color: var(--text-muted); font-size: 11px;">💡 Estas informações ficarão salvas no prontuário do paciente.</small>
+            </div>
+            <div style="background: #fff4f4; padding: 10px; border-radius: 6px; border: 1px solid #ffcccc;">
+                <label style="color: var(--danger); font-weight: bold;">Senha</label>
+                <input type="password" id="f-auth" class="form-control" placeholder="Senha Profissional ou Admin">
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 25px;">
+            <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-booking')">Cancelar</button>
+            <button class="btn btn-primary" style="flex:2" onclick="processBooking()">Salvar</button>
+        </div>
+    </div>
+</div>
+<!-- MODAL PROFISSIONAIS -->
+<div id="modal-prof" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid var(--primary); padding-bottom: 10px;">
+            <h3 id="prof-modal-title">Gestão de Profissionais</h3>
+            <button class="btn btn-outline" onclick="closeModal('modal-prof')">✕</button>
+        </div>
+        <div style="background: var(--surface2); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <input type="hidden" id="p-id">
+            <div style="display: grid; grid-template-columns: 2fr 1.5fr auto; gap: 10px; align-items: end;">
+                <div>
+                    <label>Nome Completo</label>
+                    <input type="text" id="p-nome" class="form-control" placeholder="Nome do profissional...">
+                </div>
+                <div>
+                    <label>Senha (mín. 8 caracteres)</label>
+                    <input type="password" id="p-pass" class="form-control" placeholder="Senha pessoal...">
+                </div>
+                <div style="display: flex; gap: 5px;">
+                    <button class="btn btn-success" onclick="saveProf()">Salvar</button>
+                    <button class="btn btn-outline" id="btn-cancel-edit" style="display:none" onclick="resetProfForm()">Cancelar</button>
+                </div>
+            </div>
+        </div>
+        <div class="grid-wrapper">
+            <table>
+                <thead><tr><th>Nome</th><th>Ações</th></tr></thead>
+                <tbody id="prof-list-body"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CLIENTES -->
+<div id="modal-cliente" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid var(--primary); padding-bottom: 10px;">
+            <h3 id="cliente-modal-title">Cadastro de Pacientes</h3>
+            <button class="btn btn-outline" onclick="closeModal('modal-cliente')">✕</button>
+        </div>
+        <div style="background: var(--surface2); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <input type="hidden" id="c-id">
+            <div style="display: grid; grid-template-columns: 2fr 1.5fr auto; gap: 10px; align-items: end;">
+                <div>
+                    <label>Nome Completo (MAIÚSCULAS)</label>
+                    <input type="text" id="c-nome" class="form-control" placeholder="Nome do paciente..." oninput="this.value = this.value.toUpperCase()">
+                </div>
+                <div>
+                    <label>Celular (000-00000-0000)</label>
+                    <input type="text" id="c-celular" class="form-control" placeholder="000-00000-0000" oninput="formatCelular(this)" maxlength="14">
+                </div>
+                <div style="display: flex; gap: 5px;">
+                    <button class="btn btn-success" onclick="saveCliente()">Salvar</button>
+                    <button class="btn btn-outline" id="btn-cancel-edit-cliente" style="display:none" onclick="resetClienteForm()">Cancelar</button>
+                </div>
+            </div>
+            
+            <div style="margin-top: 12px; padding: 10px; background: #fff8e1; border-radius: 6px; border: 1px solid #ffcc80;">
+                <label style="font-weight: bold; color: var(--warning); display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="c-outro-prof-check" onchange="toggleCadastroOutrosProfs(this.checked)">
+                    Este paciente também é atendido por outro(s) profissional(is)?
+                </label>
+                <div id="cadastro-outros-profs-container" style="display: none; margin-top: 10px;">
+                    <label style="font-size: 12px; color: var(--text-muted);">Selecione os profissionais:</label>
+                    <div id="cadastro-outros-profs-list" class="prof-list-container"></div>
+                </div>
+            </div>
+        </div>
+        <div class="search-box" style="margin-bottom: 10px;">
+            <input type="text" id="search-cliente" class="form-control" placeholder="Buscar paciente por nome ou celular..." oninput="renderClienteList()">
+        </div>
+        <div class="grid-wrapper">
+            <table>
+                <thead><tr><th>Nome</th><th>Celular</th><th>Profissionais</th><th>Cadastro</th><th>Ações</th></tr></thead>
+                <tbody id="cliente-list-body"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<!-- MODAL RELATORIO CLIENTE - RESTAURADO v6.3 FUNCIONAL -->
+<div id="modal-cliente-relatorio" class="modal">
+    <div class="modal-content" style="max-width: 900px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid var(--primary); padding-bottom: 10px;">
+            <h3>📋 Histórico e Prontuário do Paciente</h3>
+            <button class="btn btn-outline" onclick="closeModal('modal-cliente-relatorio')">✕</button>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr auto; gap: 10px; background: var(--surface2); padding: 15px; border-radius: 8px; margin-bottom: 15px; align-items: end;">
+            <div>
+                <label>Selecionar Paciente</label>
+                <select id="rel-cliente-id" class="form-control" onchange="atualizarRelatorioCliente()">
+                    <option value="">-- Selecione --</option>
+                </select>
+            </div>
+            <div>
+                <label>De</label>
+                <input type="date" id="rel-cliente-de" class="form-control" onchange="atualizarRelatorioCliente()">
+            </div>
+            <div>
+                <label>Até</label>
+                <input type="date" id="rel-cliente-ate" class="form-control" onchange="atualizarRelatorioCliente()">
+            </div>
+            <div>
+                <button class="btn btn-primary" style="width: 100%;" onclick="exportarPdfCliente()">📥 PDF Prontuário</button>
+            </div>
+        </div>
+        
+        <div id="cliente-resumo-info" style="margin-bottom: 15px; padding: 12px; background: #e8f4fd; border-radius: 6px; display: none; border-left: 4px solid var(--primary);">
+            <strong id="rel-nome-cliente" style="font-size: 16px; color: var(--primary);"></strong>
+            <div style="display: flex; gap: 20px; margin-top: 8px; font-size: 13px; color: var(--text-muted); flex-wrap: wrap;">
+                <span>📞 <span id="rel-fone-cliente"></span></span>
+                <span>📅 Cadastrado em: <span id="rel-cadastro-cliente"></span></span>
+                <span>👨‍⚕️ Profissionais: <strong id="rel-profs-cliente" style="color: var(--secondary);"></strong></span>
+                <span>🏥 Total de atendimentos: <strong id="rel-total-atendimentos" style="color: var(--secondary);"></strong></span>
+            </div>
+        </div>
+        
+        <div class="grid-wrapper" style="max-height: 350px; overflow-y: auto;">
+            <table>
+                <thead>
+                    <tr><th>Data</th><th>Sala</th><th>Horário</th><th>Profissional</th><th>Status</th><th>Observações / Histórico</th></tr>
+                </thead>
+                <tbody id="rel-cliente-body">
+                    <tr><td colspan="6" style="text-align:center; padding: 30px; color: var(--text-muted);">Selecione um paciente para visualizar o histórico</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EXPORT -->
+<div id="modal-export" class="modal">
+    <div class="modal-content" style="max-width: 850px;">
+        <h3>Relatórios</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; background: var(--surface2); padding: 15px; border-radius: 8px; margin-top: 10px;">
+            <div><label>Período</label><select id="exp-period" class="form-control"><option value="dia">Hoje</option><option value="mes">Mês Atual</option><option value="total">Geral</option></select></div>
+            <div><label>Sala</label><select id="exp-sala" class="form-control"><option value="todas">Todas as Salas</option></select></div>
+            <div><label>Formato</label><select id="exp-format" class="form-control"><option value="pdf">PDF</option></select></div>
+        </div>
+        <button class="btn btn-success" style="width: 100%; margin-top: 15px;" onclick="processExport(false)">Gerar Prévia</button>
+        <div id="export-preview" style="margin-top: 20px; max-height: 250px; overflow-y: auto; border: 1px solid var(--border);">
+            <table><thead><tr><th>Sala</th><th>Horário</th><th>Profissional</th><th>Data</th></tr></thead><tbody id="export-preview-body"></tbody></table>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button class="btn btn-outline" onclick="closeModal('modal-export')">Fechar</button>
+            <button class="btn btn-primary" style="flex:1" onclick="processExport(true)">📥 Baixar PDF</button>
+        </div>
+    </div>
+</div>
+<!-- MODAL ADMIN -->
+<div id="modal-admin" class="modal">
+    <div class="modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3>Painel Administrativo</h3>
+            <button class="btn btn-outline" onclick="closeModal('modal-admin')">✕</button>
+        </div>
+        <div class="tab-nav">
+            <button class="tab-btn active" id="btn-tab-rateio" onclick="switchAdminTab('rateio')">Rateio</button>
+            <button class="tab-btn" id="btn-tab-dashboard" onclick="switchAdminTab('dashboard')">Dashboard</button>
+            <button class="tab-btn" id="btn-tab-auditoria" onclick="switchAdminTab('auditoria')">Auditoria</button>
+            <button class="tab-btn" id="btn-tab-config" onclick="switchAdminTab('config')">Config. Salas</button>
+            <button class="tab-btn" id="btn-tab-backup" onclick="switchAdminTab('backup')">Backup</button>
+        </div>
+        <div id="pane-rateio" class="tab-pane active">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; background: var(--surface2); padding: 15px; border-radius: 8px;">
+                <div><label>Período</label><select id="adm-period" class="form-control" onchange="refreshAdminData()"><option value="mes">Mês Corrente</option><option value="total">Todo Histórico</option></select></div>
+                <div style="display: flex; align-items: flex-end;"><div style="background: var(--primary); color: white; padding: 10px; border-radius: 6px; width: 100%; text-align: center;">Total: <strong id="adm-total-faturamento">R$ 0,00</strong></div></div>
+            </div>
+            <div class="grid-wrapper">
+                <table><thead><tr><th>Profissional</th><th>Horas</th><th>Faturamento</th><th>Última Atividade</th></tr></thead><tbody id="admin-rateio-body"></tbody></table>
+            </div>
+        </div>
+        <div id="pane-dashboard" class="tab-pane">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div><h4 style="color:var(--primary);">Ocupação</h4><div class="grid-wrapper"><table><thead><tr><th>Sala</th><th>Semana</th><th>Mês</th></tr></thead><tbody id="dash-rep1"></tbody></table></div></div>
+                <div><h4 style="color:var(--primary);">Clientes por Sala</h4><div class="grid-wrapper"><table><thead><tr><th>Sala</th><th>Total</th></tr></thead><tbody id="dash-rep2"></tbody></table></div></div>
+                <div><h4 style="color:var(--primary);">Faltas</h4><div class="grid-wrapper"><table><thead><tr><th>Profissional</th><th>Qtd</th></tr></thead><tbody id="dash-rep3"></tbody></table></div></div>
+                <div><h4 style="color:var(--primary);">Uso por Profissional</h4><div class="grid-wrapper"><table><thead><tr><th>Profissional</th><th>%</th></tr></thead><tbody id="dash-rep4"></tbody></table></div></div>
+            </div>
+        </div>
+        <div id="pane-auditoria" class="tab-pane">
+            <div class="grid-wrapper">
+                <table><thead><tr><th>Data/Hora</th><th>Tipo</th><th>Profissional</th><th>Sala/Data</th><th>IP</th></tr></thead><tbody id="admin-audit-body"></tbody></table>
+            </div>
+        </div>
+        <div id="pane-config" class="tab-pane">
+            <div style="background: var(--surface2); padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                <h4 id="sala-form-title">Adicionar Nova Sala</h4>
+                <input type="hidden" id="edit-sala-idx" value="-1">
+                <div style="display: grid; grid-template-columns: 2fr 2fr 1fr auto; gap: 10px;">
+                    <div><label>Nome</label><input type="text" id="new-sala-name" class="form-control" placeholder="Ex: Sala 01"></div>
+                    <div><label>Apelido</label><input type="text" id="new-sala-nick" class="form-control" placeholder="Ex: Pilates"></div>
+                    <div><label>Valor/Hora</label><input type="number" id="new-sala-value" class="form-control" value="65"></div>
+                    <div style="display: flex; align-items: flex-end; gap: 5px;">
+                        <button class="btn btn-primary" onclick="saveSala()">Salvar</button>
+                        <button class="btn btn-outline" id="btn-cancel-sala" style="display:none" onclick="resetSalaForm()">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+            <div class="grid-wrapper">
+                <table><thead><tr><th>Sala</th><th>Apelido</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="admin-salas-body"></tbody></table>
+            </div>
+        </div>
+        <div id="pane-backup" class="tab-pane">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div style="background: var(--surface2); padding: 20px; border-radius: 8px;">
+                    <h4>Alterar Senhas</h4>
+                    <label>Nova Senha Admin</label><input type="password" id="new-admin-pass" class="form-control" placeholder="Acesso ao painel">
+                    <label style="margin-top:10px; display:block;">Nova Senha Master</label><input type="password" id="new-master-pass" class="form-control" placeholder="Cadastro/exclusão">
+                    <label style="margin-top:15px; color: var(--danger); font-weight: bold;">Contra Senha</label><input type="password" id="sys-contra-senha" class="form-control" style="border-color: var(--danger);" placeholder="EDISONAPPARECIDO">
+                    <button class="btn btn-danger" style="width:100%; margin-top:15px;" onclick="changeSystemPasswords()">Atualizar</button>
+                </div>
+                <div style="background: var(--surface2); padding: 20px; border-radius: 8px; border: 1px dashed var(--primary);">
+                    <h4>Backup</h4>
+                    <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="exportBackup()">📥 Download JSON</button>
+                    <input type="file" id="input-backup" accept=".json" style="display: none;" onchange="importBackup(event)">
+                    <button class="btn btn-outline" style="width: 100%;" onclick="document.getElementById('input-backup').click()">📤 Restaurar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="footer-copyright">
+    <p>FisioSalas Pro v6.4.1 Cloud + Clientes - © 2026 Edison.Apparecido</p>
+</footer>
+
+<script>
+// ==========================================
+// PARTE 1: CONFIGURACAO, ESTADO E UTILITARIOS
+// ==========================================
+
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyXyzXJfNTiyAkKHdGEwi9qHLyyyLopmB_rnmujIZLb2CT4F2M_0rHyqjcfi9ZbokHH/exec'; 
+
+const CONTRA_SENHA_SISTEMA = "EDISONAPPARECIDO";
+const HORARIOS = Array.from({length: 15}, (_, i) => i + 7);
+
+let state = {
+    profissionais: [],
+    bookings: [],
+    deletions: [],
+    clientes: [],
+    salas: [
+        {nome: 'Sala 1', apelido: 'Geral', valor: 65},
+        {nome: 'Sala 2', apelido: 'Pilates', valor: 85},
+        {nome: 'Sala 3', apelido: 'RPG', valor: 75},
+        {nome: 'Sala 4', apelido: 'Consulta', valor: 60}
+    ],
+    config: { adminPass: 'Pfisio1234#', masterKey: '3ftiva#' },
+    currentDate: new Date(),
+    currentView: 'dia',
+    editingId: null,
+    userIp: 'local'
+};
+
+const STATUS_COLORS = {
+    confirmado: '#ffffff',
+    pendente: '#fff3cd',
+    finalizado: '#d4edda',
+    falta: '#f8d7da'
+};
+
+let debugMode = false;
+function toggleDebug() {
+    debugMode = !debugMode;
+    document.getElementById('debug-panel').style.display = debugMode ? 'block' : 'none';
+}
+function debug(msg) {
+    const panel = document.getElementById('debug-panel');
+    const line = document.createElement('div');
+    line.textContent = new Date().toLocaleTimeString() + ': ' + msg;
+    panel.appendChild(line);
+    panel.scrollTop = panel.scrollHeight;
+    console.log('[FisioDebug]', msg);
+}
+
+function normalizeDate(dateStr) {
+    if (!dateStr) return '';
+    if (typeof dateStr === 'object' && dateStr.toISOString) {
+        return dateStr.toISOString().split('T')[0];
+    }
+    if (typeof dateStr === 'string') {
+        if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dateStr;
+        return dateStr.split('T')[0].split(' ')[0];
+    }
+    return '';
+}
+
+function normalizeStateDates() {
+    if (!state.currentDate || typeof state.currentDate === 'string') {
+        state.currentDate = new Date(state.currentDate || Date.now());
+    }
+    state.bookings.forEach(b => {
+        if (b.hStart) b.hStart = parseInt(b.hStart);
+        if (b.hEnd) b.hEnd = parseInt(b.hEnd);
+        if (b.totalH) b.totalH = parseInt(b.totalH);
+        if (b.profId) b.profId = parseInt(b.profId);
+        if (b.segundoProfId) b.segundoProfId = parseInt(b.segundoProfId);
+        if (b.valorHoraAplicado) b.valorHoraAplicado = parseFloat(b.valorHoraAplicado);
+        if (b.clienteId) b.clienteId = parseInt(b.clienteId);
+        if (b.date) b.date = normalizeDate(b.date);
+    });
+}
+
+function getSalaDisplayName(salaObj) {
+    if (!salaObj) return 'Sala';
+    return salaObj.apelido ? salaObj.nome + ' - ' + salaObj.apelido : salaObj.nome;
+}
+
+function isPilates(salaName) {
+    return salaName.toLowerCase().includes('pilates');
+}
+
+function toggleRecurrent(checked) {
+    const opts = document.getElementById('recurrent-options');
+    if (opts) opts.style.display = checked ? 'block' : 'none';
+}
+
+function formatCelularInput(valor) {
+    let v = valor.replace(/\D/g, '');
+    if (v.length > 12) v = v.substring(0, 12);
+    if (v.length >= 7) {
+        v = v.replace(/^(\d{3})(\d{5})(\d{0,4}).*/, '$1-$2-$3');
+    } else if (v.length >= 3) {
+        v = v.replace(/^(\d{3})(\d{0,5}).*/, '$1-$2');
+    }
+    return v;
+}
+
+function formatCelular(objInput) {
+    objInput.value = formatCelularInput(objInput.value);
+}
+
+function buscarClientePorCelular(celular) {
+    const limpo = celular.replace(/\D/g, '');
+    return state.clientes.find(c => c.celular && c.celular.replace(/\D/g, '') === limpo);
+}
+
+function buscarClientePorId(id) {
+    return state.clientes.find(c => c.id === id);
+}
+
+function getNomeClienteDisplay(booking) {
+    if (booking.clienteId) {
+        const c = buscarClientePorId(booking.clienteId);
+        if (c) return c.nome;
+    }
+    return booking.patient || '--';
+}
+
+function getProfissionaisCliente(clienteId) {
+    const c = buscarClientePorId(clienteId);
+    if (!c || !c.profissionais) return [];
+    return c.profissionais;
+}
+
+function clienteEhDeProfissional(clienteId, profId) {
+    const profs = getProfissionaisCliente(clienteId);
+    return profs.includes(parseInt(profId));
+}
+
+function verificarPermissaoCliente(clienteId, senhaDigitada) {
+    if (senhaDigitada === state.config.adminPass) return true;
+    const prof = state.profissionais.find(p => p.pass === senhaDigitada);
+    if (!prof) return false;
+    if (!clienteId) return true;
+    return clienteEhDeProfissional(clienteId, prof.id);
+}
+
+// ==========================================
+// PARTE 2: SINCRONIZACAO CLOUD
+// ==========================================
+
+function fetchFromCloud(showConfirm = false) {
+    if (showConfirm && !confirm("⚠️ Buscar dados da nuvem?\n\nIsso substituirá dados locais não salvos.")) {
+        return;
+    }
+
+    const status = document.getElementById('cloud-status');
+    status.style.display = 'block';
+    status.className = 'sync-active';
+    status.innerText = '☁️ CONECTANDO...';
+    
+    debug('Iniciando fetchFromCloud...');
+    debug('URL: ' + SCRIPT_URL);
+
+    Object.keys(window).forEach(key => {
+        if (key.startsWith('fs_cb_')) {
+            try { delete window[key]; } catch(e){}
+        }
+    });
+
+    const callbackName = 'fs_cb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    let resolved = false;
+    
+    const safetyTimeout = setTimeout(function() {
+        if (!resolved) {
+            resolved = true;
+            cleanup();
+            debug('TIMEOUT: Nuvem não respondeu em 20s');
+            status.style.backgroundColor = 'var(--danger)';
+            status.innerText = '❌ TIMEOUT';
+            const hasLocal = loadFromLocalStorage();
+            if (hasLocal) {
+                status.innerText = '⚠️ OFFLINE (dados locais)';
+                setTimeout(() => status.className = '', 3000);
+                finalizeLoading();
+            }
+        }
+    }, 20000);
+
+    function cleanup() {
+        const script = document.getElementById('jsonp_script');
+        if (script) script.remove();
+        try { delete window[callbackName]; } catch(e){}
+        if (safetyTimeout) clearTimeout(safetyTimeout);
+    }
+    
+    window[callbackName] = function(data) {
+        if (resolved) {
+            debug('Callback chamado mas já resolvido (ignorado)');
+            return;
+        }
+        resolved = true;
+        clearTimeout(safetyTimeout);
+        cleanup();
+        
+        debug('Callback executado! Tipo: ' + typeof data);
+        
+        try {
+            if (!data) {
+                throw new Error('Dados vazios (null/undefined)');
+            }
+            
+            debug('RAW DATA: ' + JSON.stringify(data).substring(0, 500));
+            debug('KEYS: ' + Object.keys(data).join(', '));
+            
+            const hasValidData = Array.isArray(data.profissionais) || Array.isArray(data.bookings) || Array.isArray(data.salas) || Array.isArray(data.clientes);
+            
+            if (!hasValidData) {
+                debug('AVISO: Nuvem retornou estrutura inválida. Mantendo dados locais.');
+                status.style.backgroundColor = 'var(--warning)';
+                status.innerText = '⚠️ NUVEM VAZIA (mantendo local)';
+                loadFromLocalStorage();
+                setTimeout(() => { status.className = ''; }, 3000);
+                finalizeLoading();
+                return;
+            }
+            
+            const localHasData = state.bookings.length > 0 || state.profissionais.length > 0 || state.clientes.length > 0;
+            const cloudIsEmpty = (!data.bookings || data.bookings.length === 0) && 
+                                 (!data.profissionais || data.profissionais.length === 0) &&
+                                 (!data.clientes || data.clientes.length === 0);
+            
+            if (localHasData && cloudIsEmpty) {
+                debug('AVISO: Nuvem retornou vazio mas local tem dados.');
+                status.style.backgroundColor = 'var(--warning)';
+                status.innerText = '⚠️ NUVEM VAZIA (local preservado)';
+                setTimeout(() => { status.className = ''; }, 3000);
+                finalizeLoading();
+                return;
+            }
+            
+            if (Array.isArray(data.profissionais)) state.profissionais = data.profissionais;
+            if (Array.isArray(data.bookings)) state.bookings = data.bookings;
+            state.deletions = Array.isArray(data.deletions) ? data.deletions : [];
+            if (Array.isArray(data.salas) && data.salas.length > 0) state.salas = data.salas;
+            if (Array.isArray(data.clientes) && data.clientes.length > 0) state.clientes = data.clientes;
+            if (data.config && data.config.adminPass) state.config = data.config;
+            
+            normalizeStateDates();
+            
+            try {
+                localStorage.setItem('fs_state', JSON.stringify(state));
+                debug('Salvo no localStorage: ' + state.bookings.length + ' reservas, ' + state.clientes.length + ' clientes');
+            } catch(e) {
+                debug('ERRO localStorage: ' + e.message);
+            }
+            
+            status.style.backgroundColor = 'var(--secondary)';
+            status.innerText = '✅ SINCRONIZADO (' + state.bookings.length + ' reservas, ' + state.clientes.length + ' clientes)';
+            setTimeout(() => { status.className = ''; }, 2500);
+            
+            debug('Sincronização completa com sucesso');
+            
+        } catch (e) {
+            debug('ERRO no processamento: ' + e.message);
+            console.error('Erro detalhado:', e);
+            status.style.backgroundColor = 'var(--danger)';
+            status.innerText = '❌ ERRO: ' + e.message.substring(0, 30);
+            loadFromLocalStorage();
+        }
+        
+        finalizeLoading();
+    };
+
+    const script = document.createElement('script');
+    script.id = 'jsonp_script';
+    script.async = true;
+    const cacheBuster = '&_=' + Date.now();
+    script.src = SCRIPT_URL + '?action=get&callback=' + callbackName + cacheBuster;
+    
+    script.onerror = function(err) {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(safetyTimeout);
+        cleanup();
+        debug('ERRO no carregamento do script. Possíveis causas:');
+        debug('1. URL do Apps Script incorreta ou deploy expirado');
+        debug('2. Apps Script retornou erro (ver Executions no editor)');
+        debug('3. Problema de conectividade');
+        status.style.backgroundColor = 'var(--danger)';
+        status.innerText = '❌ ERRO REDE';
+        const hasLocal = loadFromLocalStorage();
+        if (hasLocal) {
+            status.innerText = '⚠️ OFFLINE (dados locais)';
+            setTimeout(() => status.className = '', 3000);
+            finalizeLoading();
+        }
+    };
+    
+    script.onload = function() {
+        debug('Script tag carregado no DOM. Aguardando callback...');
+    };
+    
+    debug('Inserindo script no DOM...');
+    document.head.appendChild(script);
+}
+
+function finalizeLoading() {
+    debug('Finalizando carregamento...');
+    normalizeStateDates();
+    populateSelectors();
+    render();
+    updateStats();
+    debug('Render completo. Profs: ' + state.profissionais.length + ', Bookings: ' + state.bookings.length + ', Clientes: ' + state.clientes.length);
+}
+
+function saveToCloud() {
+    const status = document.getElementById('cloud-status');
+    status.style.display = 'block';
+    status.className = 'sync-active';
+    status.innerText = '☁️ SALVANDO...';
+    
+    debug('Salvando ' + state.bookings.length + ' reservas...');
+    
+    try {
+        localStorage.setItem('fs_state', JSON.stringify(state));
+    } catch(e) {
+        debug('ERRO ao salvar local: ' + e.message);
+    }
+
+    const dataToSend = JSON.parse(JSON.stringify(state));
+    dataToSend.currentDate = new Date().toISOString();
+
+    fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSend)
+    }).then(() => {
+        status.style.backgroundColor = 'var(--secondary)';
+        status.innerText = '✅ SALVO NA NUVEM!';
+        setTimeout(() => { status.className = ''; }, 1500);
+        debug('Salvo na nuvem com sucesso');
+    }).catch((err) => {
+        debug('ERRO ao salvar na nuvem: ' + err.message);
+        status.style.backgroundColor = 'var(--warning)';
+        status.innerText = '⚠️ APENAS LOCAL';
+        setTimeout(() => { status.className = ''; }, 3000);
+    });
+}
+
+function loadFromLocalStorage() {
+    try {
+        const saved = localStorage.getItem('fs_state');
+        if (saved) {
+            debug('Carregando do localStorage...');
+            const parsed = JSON.parse(saved);
+            
+            if (!parsed || typeof parsed !== 'object') {
+                throw new Error('Dados inválidos no localStorage');
+            }
+            
+            if (Array.isArray(parsed.profissionais)) state.profissionais = parsed.profissionais;
+            if (Array.isArray(parsed.bookings)) state.bookings = parsed.bookings;
+            if (Array.isArray(parsed.deletions)) state.deletions = parsed.deletions;
+            if (Array.isArray(parsed.salas) && parsed.salas.length > 0) state.salas = parsed.salas;
+            if (Array.isArray(parsed.clientes) && parsed.clientes.length > 0) state.clientes = parsed.clientes;
+            if (parsed.config && parsed.config.adminPass) state.config = parsed.config;
+            
+            normalizeStateDates();
+            debug('localStorage carregado: ' + state.bookings.length + ' reservas, ' + state.clientes.length + ' clientes');
+            return true;
+        }
+    } catch (e) {
+        debug('ERRO localStorage: ' + e.message);
+    }
+    debug('Nenhum dado local encontrado');
+    return false;
+}
+
+function populateSelectors() {
+    const fProf = document.getElementById('f-prof');
+    const fSala = document.getElementById('f-sala');
+    const expSala = document.getElementById('exp-sala');
+    const fStart = document.getElementById('f-start');
+    const fEnd = document.getElementById('f-end');
+    const fRecWeeks = document.getElementById('f-recurrent-weeks');
+    
+    if (fProf) fProf.innerHTML = state.profissionais.map(p => '<option value="' + p.id + '">' + p.nome + '</option>').join('') || '<option value="">Nenhum profissional</option>';
+    if (fSala) fSala.innerHTML = state.salas.map(s => '<option value="' + getSalaDisplayName(s) + '">' + getSalaDisplayName(s) + '</option>').join('');
+    if (expSala) expSala.innerHTML = '<option value="todas">Todas as Salas</option>' + state.salas.map(s => '<option value="' + getSalaDisplayName(s) + '">' + getSalaDisplayName(s) + '</option>').join('');
+    
+    const h = HORARIOS.map(hr => '<option value="' + hr + '">' + hr + ':00</option>').join('');
+    if (fStart) fStart.innerHTML = h; 
+    if (fEnd) fEnd.innerHTML = h;
+    
+    if (fRecWeeks) {
+        let recOptions = '';
+        for (let i = 2; i <= 20; i++) {
+            recOptions += '<option value="' + i + '">' + i + ' semanas</option>';
+        }
+        fRecWeeks.innerHTML = recOptions;
+    }
+}
+
+function updateBookingValueDisplay() {
+    const sala = document.getElementById('f-sala').value || '';
+    const sharedSection = document.getElementById('shared-section');
+    if (!sharedSection) return;
+    
+    if (isPilates(sala)) {
+        sharedSection.style.display = 'block';
+        populateSegundoProfSelect();
+    } else {
+        sharedSection.style.display = 'none';
+    }
+}
+
+function populateSegundoProfSelect() {
+    const principalId = parseInt(document.getElementById('f-prof').value) || 0;
+    const select = document.getElementById('f-segundo-prof');
+    if (!select) return;
+    
+    let options = '<option value="">-- Nenhum --</option>';
+    state.profissionais.forEach(p => {
+        if (p.id !== principalId) {
+            options += '<option value="' + p.id + '">' + p.nome + '</option>';
+        }
+    });
+    select.innerHTML = options;
+}
+
+function updateStats() {
+    const dateStr = state.currentDate.toISOString().split('T')[0];
+    const now = new Date();
+    const confirmed = state.bookings.filter(b => b.status === 'confirmado');
+    
+    const horasMes = confirmed.filter(b => {
+        const d = new Date(b.date + 'T00:00:00');
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).reduce((acc, b) => acc + b.totalH, 0);
+
+    document.getElementById('stat-total-profs').innerText = state.profissionais.length;
+    document.getElementById('stat-books-today').innerText = state.bookings.filter(b => b.date === dateStr).length;
+    document.getElementById('stat-hours-month').innerText = horasMes + 'h';
+
+    document.querySelectorAll('.stat-dynamic').forEach(el => el.remove());
+
+    state.salas.forEach((s) => {
+        const name = getSalaDisplayName(s);
+        const horasHoje = state.bookings.filter(b => b.date === dateStr && b.sala === name && b.status === 'confirmado').reduce((a,b) => a+b.totalH, 0);
+        const perc = Math.min(((horasHoje / 15) * 100), 100).toFixed(0);
+        const div = document.createElement('div');
+        div.className = 'stat-item stat-dynamic';
+        div.innerHTML = '<span class="stat-val" style="color:var(--info)">' + perc + '%</span><span class="stat-lbl">Ocup. ' + s.nome + '</span>';
+        document.getElementById('stats-container').appendChild(div);
+    });
+}
+// ==========================================
+// PARTE 3: MODULO CLIENTE (CRUD) - v6.4.1
+// ==========================================
+
+function toggleOutrosProfs(checked) {
+    const container = document.getElementById('outros-profs-container');
+    const list = document.getElementById('outros-profs-list');
+    if (!container || !list) return;
+    
+    if (checked) {
+        container.style.display = 'block';
+        const profSelecionado = parseInt(document.getElementById('f-prof').value) || 0;
+        let html = '';
+        state.profissionais.forEach(p => {
+            if (p.id !== profSelecionado) {
+                html += '<div class="checkbox-item">';
+                html += '<input type="checkbox" id="outro-prof-' + p.id + '" value="' + p.id + '">';
+                html += '<label for="outro-prof-' + p.id + '">' + p.nome + '</label>';
+                html += '</div>';
+            }
+        });
+        list.innerHTML = html || '<p style="color: var(--text-muted); font-size: 12px;">Nenhum outro profissional disponível</p>';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+function toggleCadastroOutrosProfs(checked) {
+    const container = document.getElementById('cadastro-outros-profs-container');
+    const list = document.getElementById('cadastro-outros-profs-list');
+    if (!container || !list) return;
+    
+    if (checked) {
+        container.style.display = 'block';
+        let html = '';
+        state.profissionais.forEach(p => {
+            html += '<div class="checkbox-item">';
+            html += '<input type="checkbox" id="cad-outro-prof-' + p.id + '" value="' + p.id + '">';
+            html += '<label for="cad-outro-prof-' + p.id + '">' + p.nome + '</label>';
+            html += '</div>';
+        });
+        list.innerHTML = html;
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+function getOutrosProfsSelecionados(prefix) {
+    const selecionados = [];
+    state.profissionais.forEach(p => {
+        const checkbox = document.getElementById(prefix + p.id);
+        if (checkbox && checkbox.checked) {
+            selecionados.push(p.id);
+        }
+    });
+    return selecionados;
+}
+
+function saveCliente() {
+    const id = document.getElementById('c-id').value;
+    const nome = document.getElementById('c-nome').value.trim().toUpperCase();
+    const celular = document.getElementById('c-celular').value.trim();
+    
+    if (!nome) return alert("Nome é obrigatório.");
+    if (celular.replace(/\D/g, '').length < 11) return alert("Celular inválido. Use o formato 000-00000-0000");
+    
+    const existente = buscarClientePorCelular(celular);
+    if (existente && (!id || parseInt(id) !== existente.id)) {
+        return alert("Já existe um paciente cadastrado com este celular: " + existente.nome);
+    }
+    
+    if (id) {
+        const senha = prompt("Digite sua senha para editar este paciente:");
+        if (!verificarPermissaoCliente(parseInt(id), senha)) {
+            return alert("Sem permissão! Apenas o profissional vinculado ou administrador pode editar.");
+        }
+    }
+    
+    const outrosProfs = getOutrosProfsSelecionados('cad-outro-prof-');
+    let profissionais = [];
+    
+    if (!id) {
+        const senha = prompt("Digite sua senha para confirmar o cadastro:");
+        const prof = state.profissionais.find(p => p.pass === senha);
+        if (!prof && senha !== state.config.adminPass) {
+            return alert("Senha inválida!");
+        }
+        if (prof) profissionais.push(prof.id);
+    } else {
+        const clienteExistente = buscarClientePorId(parseInt(id));
+        profissionais = clienteExistente ? (clienteExistente.profissionais || []) : [];
+    }
+    
+    outrosProfs.forEach(pid => {
+        if (!profissionais.includes(pid)) profissionais.push(pid);
+    });
+    
+    if (id) {
+        state.clientes = state.clientes.map(c => c.id == id ? { ...c, nome, celular, profissionais } : c);
+    } else {
+        state.clientes.push({
+            id: Date.now(),
+            nome: nome,
+            celular: celular,
+            profissionais: profissionais,
+            dataCadastro: new Date().toLocaleString('pt-BR')
+        });
+    }
+    
+    saveToCloud();
+    resetClienteForm();
+    renderClienteList();
+    populateClienteRelatorioSelect();
+    alert("✅ Paciente salvo com sucesso!");
+}
+
+function editCliente(id) {
+    const c = state.clientes.find(x => x.id == id);
+    if (!c) return;
+    
+    const senha = prompt("Digite sua senha para editar este paciente:");
+    if (!verificarPermissaoCliente(id, senha)) {
+        return alert("Sem permissão! Apenas o profissional vinculado ou administrador pode editar.");
+    }
+    
+    document.getElementById('c-id').value = c.id;
+    document.getElementById('c-nome').value = c.nome;
+    document.getElementById('c-celular').value = c.celular;
+    document.getElementById('btn-cancel-edit-cliente').style.display = "inline-flex";
+    document.getElementById('cliente-modal-title').innerText = "Editar Paciente";
+    
+    const profs = c.profissionais || [];
+    if (profs.length > 0) {
+        document.getElementById('c-outro-prof-check').checked = true;
+        toggleCadastroOutrosProfs(true);
+        profs.forEach(pid => {
+            const cb = document.getElementById('cad-outro-prof-' + pid);
+            if (cb) cb.checked = true;
+        });
+    }
+}
+
+function removeCliente(id) {
+    const c = buscarClientePorId(id);
+    if (!c) return;
+    
+    if (!confirm("Remover paciente permanentemente?\n\nNome: " + c.nome + "\nCelular: " + c.celular)) return;
+    
+    const senha = prompt("Digite sua senha para remover este paciente:");
+    if (!verificarPermissaoCliente(id, senha)) {
+        return alert("Sem permissão! Apenas o profissional vinculado ou administrador pode remover.");
+    }
+    
+    state.clientes = state.clientes.filter(c => c.id !== id);
+    state.bookings = state.bookings.map(b => {
+        if (b.clienteId === id) {
+            return { ...b, clienteId: null };
+        }
+        return b;
+    });
+    saveToCloud();
+    renderClienteList();
+    populateClienteRelatorioSelect();
+    alert("✅ Paciente removido.");
+}
+
+function resetClienteForm() {
+    document.getElementById('c-id').value = "";
+    document.getElementById('c-nome').value = "";
+    document.getElementById('c-celular').value = "";
+    document.getElementById('btn-cancel-edit-cliente').style.display = "none";
+    document.getElementById('cliente-modal-title').innerText = "Cadastro de Pacientes";
+    document.getElementById('c-outro-prof-check').checked = false;
+    toggleCadastroOutrosProfs(false);
+}
+
+function renderClienteList() {
+    const tbody = document.getElementById('cliente-list-body');
+    if (!tbody) return;
+    const termo = (document.getElementById('search-cliente')?.value || '').toLowerCase();
+    
+    let lista = [...state.clientes].sort((a, b) => a.nome.localeCompare(b.nome));
+    if (termo) {
+        lista = lista.filter(c => 
+            c.nome.toLowerCase().includes(termo) || 
+            c.celular.includes(termo)
+        );
+    }
+    
+    tbody.innerHTML = lista.map(c => {
+        const profs = c.profissionais || [];
+        const nomesProfs = profs.map(pid => {
+            const p = state.profissionais.find(x => x.id === pid);
+            return p ? p.nome.split(' ')[0] : '';
+        }).filter(n => n).join(', ');
+        
+        return '<tr>' +
+        '<td><strong>' + c.nome + '</strong></td>' +
+        '<td>' + c.celular + '</td>' +
+        '<td>' + (nomesProfs || '--') + '</td>' +
+        '<td>' + (c.dataCadastro || '--') + '</td>' +
+        '<td>' +
+        '<button class="btn btn-primary" style="padding: 4px 10px; font-size: 12px;" onclick="editCliente(' + c.id + ')">Editar</button> ' +
+        '<button class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;" onclick="removeCliente(' + c.id + ')">X</button>' +
+        '</td></tr>';
+    }).join('') || '<tr><td colspan="5" style="text-align:center">Nenhum paciente cadastrado</td></tr>';
+}
+
+function searchClienteReserva(valor) {
+    const resultDiv = document.getElementById('cliente-search-results');
+    const infoBox = document.getElementById('cliente-info-display');
+    const novoBox = document.getElementById('novo-cliente-form');
+    const inputId = document.getElementById('f-cliente-id');
+    const inputPatient = document.getElementById('f-patient');
+    
+    const limpo = valor.replace(/\D/g, '');
+    
+    if (limpo.length < 11) {
+        resultDiv.style.display = 'none';
+        resultDiv.innerHTML = '';
+        infoBox.classList.remove('active');
+        novoBox.classList.remove('active');
+        inputId.value = '';
+        inputPatient.value = '';
+        return;
+    }
+    
+    const encontrado = buscarClientePorCelular(valor);
+    
+    if (encontrado) {
+        resultDiv.style.display = 'none';
+        resultDiv.innerHTML = '';
+        inputId.value = encontrado.id;
+        inputPatient.value = encontrado.nome;
+        document.getElementById('cliente-nome-display').innerText = encontrado.nome;
+        document.getElementById('cliente-fone-display').innerText = encontrado.celular;
+        infoBox.classList.add('active');
+        novoBox.classList.remove('active');
+    } else {
+        resultDiv.style.display = 'none';
+        infoBox.classList.remove('active');
+        inputId.value = '';
+        inputPatient.value = '';
+        novoBox.classList.add('active');
+        document.getElementById('f-novo-cliente-nome').focus();
+    }
+}
+
+function limparBuscaClienteReserva() {
+    document.getElementById('f-cliente-search').value = '';
+    document.getElementById('cliente-search-results').style.display = 'none';
+    document.getElementById('cliente-info-display').classList.remove('active');
+    document.getElementById('novo-cliente-form').classList.remove('active');
+    document.getElementById('f-cliente-id').value = '';
+    document.getElementById('f-patient').value = '';
+    document.getElementById('f-novo-cliente-nome').value = '';
+    document.getElementById('f-outro-prof-check').checked = false;
+    toggleOutrosProfs(false);
+}
+
+function cadastrarClienteRapido() {
+    const nome = document.getElementById('f-novo-cliente-nome').value.trim().toUpperCase();
+    const celular = document.getElementById('f-cliente-search').value.trim();
+    
+    if (!nome) return alert("Digite o nome do paciente.");
+    if (celular.replace(/\D/g, '').length < 11) return alert("Celular inválido.");
+    
+    const existente = buscarClientePorCelular(celular);
+    if (existente) {
+        alert("Paciente já cadastrado! Selecionando automaticamente.");
+        searchClienteReserva(celular);
+        return;
+    }
+    
+    const outrosProfs = getOutrosProfsSelecionados('outro-prof-');
+    const profSelecionado = parseInt(document.getElementById('f-prof').value) || 0;
+    let profissionais = [];
+    if (profSelecionado) profissionais.push(profSelecionado);
+    
+    outrosProfs.forEach(pid => {
+        if (!profissionais.includes(pid)) profissionais.push(pid);
+    });
+    
+    const novoCliente = {
+        id: Date.now(),
+        nome: nome,
+        celular: celular,
+        profissionais: profissionais,
+        dataCadastro: new Date().toLocaleString('pt-BR')
+    };
+    
+    state.clientes.push(novoCliente);
+    saveToCloud();
+    
+    document.getElementById('f-cliente-id').value = novoCliente.id;
+    document.getElementById('f-patient').value = novoCliente.nome;
+    document.getElementById('cliente-nome-display').innerText = novoCliente.nome;
+    document.getElementById('cliente-fone-display').innerText = novoCliente.celular;
+    document.getElementById('cliente-info-display').classList.add('active');
+    document.getElementById('novo-cliente-form').classList.remove('active');
+    
+    renderClienteList();
+    populateClienteRelatorioSelect();
+    
+    alert("✅ Paciente cadastrado e vinculado à reserva!");
+}
+
+// ==========================================
+// PARTE 4: RESERVAS (CRUD)
+// ==========================================
+
+function processBooking() {
+    const pId = parseInt(document.getElementById('f-prof').value);
+    const prof = state.profissionais.find(p => p.id === pId);
+    const auth = document.getElementById('f-auth').value;
+
+    if (auth !== state.config.adminPass && auth !== state.config.masterKey && (prof && auth !== prof.pass)) {
+        return alert("Senha incorreta.");
+    }
+    
+    const start = parseInt(document.getElementById('f-start').value);
+    const end = parseInt(document.getElementById('f-end').value);
+    if (end <= start) return alert("Horário inválido.");
+    
+    const salaNome = document.getElementById('f-sala').value;
+    const salaObj = state.salas.find(s => getSalaDisplayName(s) === salaNome);
+    const dataAlvo = document.getElementById('f-date').value;
+    
+    const segundoId = parseInt(document.getElementById('f-segundo-prof').value) || null;
+    const segundoProf = segundoId ? state.profissionais.find(p => p.id === segundoId) : null;
+
+    const clienteId = parseInt(document.getElementById('f-cliente-id').value) || null;
+    const patientName = document.getElementById('f-patient').value.trim();
+    
+    if (!patientName && document.getElementById('f-cliente-search').value.trim()) {
+        return alert("Busque um paciente cadastrado ou complete o cadastro rápido.");
+    }
+
+    const isRecurrent = document.getElementById('f-recurrent').checked && !state.editingId;
+    const numWeeks = isRecurrent ? parseInt(document.getElementById('f-recurrent-weeks').value) : 0;
+
+    const baseData = { 
+        profId: pId, 
+        profNome: prof ? prof.nome : '', 
+        patient: patientName,
+        clienteId: clienteId,
+        status: document.getElementById('f-status').value,
+        obs: document.getElementById('f-obs').value.trim(),
+        sala: salaNome, 
+        valorHoraAplicado: salaObj ? salaObj.valor : 65,
+        hStart: start, 
+        hEnd: end, 
+        totalH: end - start, 
+        createdAt: new Date().toLocaleString('pt-BR'), 
+        ip: state.userIp,
+        segundoProfId: segundoId,
+        segundoProfNome: segundoProf ? segundoProf.nome : ''
+    };
+
+    let bookingsToCreate = [];
+    let conflitos = [];
+
+    if (!isRecurrent || state.editingId) {
+        const data = { id: state.editingId || Date.now(), date: dataAlvo, ...baseData };
+        const conflito = state.bookings.some(b => 
+            b.id !== state.editingId && 
+            b.date === dataAlvo && 
+            b.sala === salaNome && 
+            ((start >= b.hStart && start < b.hEnd) || (end > b.hStart && end <= b.hEnd) || (start <= b.hStart && end >= b.hEnd))
+        );
+        if (conflito) return alert("Conflito de horário detectado.");
+        bookingsToCreate.push(data);
+    } else {
+        for (let i = 0; i < numWeeks; i++) {
+            const bookingDate = new Date(dataAlvo + 'T00:00:00');
+            bookingDate.setDate(bookingDate.getDate() + 7 * i);
+            const newDateStr = bookingDate.toISOString().split('T')[0];
+
+            const conflito = state.bookings.some(b => 
+                b.date === newDateStr && 
+                b.sala === salaNome && 
+                ((start >= b.hStart && start < b.hEnd) || (end > b.hStart && end <= b.hEnd) || (start <= b.hStart && end >= b.hEnd))
+            );
+            if (conflito) {
+                conflitos.push(newDateStr);
+                continue;
+            }
+            bookingsToCreate.push({ id: Date.now() + i, date: newDateStr, ...baseData });
+        }
+        
+        if (conflitos.length > 0) {
+            alert('Atenção: Conflito em ' + conflitos.length + ' data(s): ' + conflitos.join(', ') + '. Outras datas foram agendadas.');
+        }
+    }
+
+    if (state.editingId) {
+        state.bookings = state.bookings.map(b => b.id === state.editingId ? bookingsToCreate[0] : b);
+    } else {
+        state.bookings.push(...bookingsToCreate);
+    }
+    
+    saveToCloud(); 
+    closeModal('modal-booking'); 
+    render();
+    
+    const msg = bookingsToCreate.length > 0 
+        ? "✅ " + bookingsToCreate.length + " reserva(s) salva(s)!" 
+        : "⚠️ Nenhuma reserva criada (conflitos em todas as datas)";
+    alert(msg);
+}
+
+function editBooking(id) {
+    if (!checkPermission(id, "para editar")) return;
+    const b = state.bookings.find(x => x.id === id); 
+    if (!b) return;
+    state.editingId = id; 
+    openModal('modal-booking'); 
+    
+    limparBuscaClienteReserva();
+    
+    document.getElementById('f-prof').value = b.profId; 
+    document.getElementById('f-sala').value = b.sala; 
+    document.getElementById('f-date').value = b.date; 
+    document.getElementById('f-start').value = b.hStart; 
+    document.getElementById('f-end').value = b.hEnd; 
+    document.getElementById('f-patient').value = b.patient || ''; 
+    document.getElementById('f-obs').value = b.obs || ''; 
+    document.getElementById('f-status').value = b.status || 'confirmado';
+    document.getElementById('f-auth').value = ''; 
+    
+    if (b.clienteId) {
+        const c = buscarClientePorId(b.clienteId);
+        if (c) {
+            document.getElementById('f-cliente-id').value = c.id;
+            document.getElementById('f-cliente-search').value = c.celular;
+            document.getElementById('cliente-nome-display').innerText = c.nome;
+            document.getElementById('cliente-fone-display').innerText = c.celular;
+            document.getElementById('cliente-info-display').classList.add('active');
+            document.getElementById('novo-cliente-form').classList.remove('active');
+        }
+    } else {
+        limparBuscaClienteReserva();
+    }
+    
+    document.getElementById('f-recurrent').checked = false;
+    document.getElementById('f-recurrent').disabled = true;
+    document.getElementById('recurrent-options').style.display = 'none';
+    
+    updateBookingValueDisplay();
+    if (b.segundoProfId && isPilates(b.sala)) {
+        document.getElementById('f-segundo-prof').value = b.segundoProfId;
+    }
+}
+
+function deleteBooking(id) {
+    const b = state.bookings.find(x => x.id === id);
+    if (!b || !checkPermission(id, "para excluir")) return;
+    if (!confirm('Excluir esta reserva?')) return;
+    
+    state.deletions.push({
+        id: Date.now(),
+        originalId: id,
+        profNome: b.profNome,
+        segundoProfNome: b.segundoProfNome || '',
+        sala: b.sala,
+        date: b.date,
+        patient: b.patient || '',
+        deletedBy: 'Profissional',
+        deletedAt: new Date().toLocaleString('pt-BR'),
+        ip: state.userIp
+    });
+    
+    state.bookings = state.bookings.filter(x => x.id !== id); 
+    saveToCloud(); 
+    render(); 
+}
+
+function checkPermission(bookingId, action) {
+    const b = state.bookings.find(x => x.id === bookingId);
+    if (!b) return false;
+    const pass = prompt('Senha ' + action + ':');
+    if (pass === null) return false;
+    const prof = state.profissionais.find(p => p.id === b.profId);
+    if (pass === state.config.adminPass || (prof && pass === prof.pass)) {
+        return true;
+    }
+    alert("Senha incorreta.");
+    return false;
+}
+// ==========================================
+// PARTE 5: RENDERIZACAO
+// ==========================================
+
+function render() {
+    normalizeStateDates();
+    
+    const container = document.getElementById('main-content');
+    if (!container) return;
+    
+    const dateStr = state.currentDate.toISOString().split('T')[0];
+    const searchVal = (document.getElementById('search-prof')?.value || '').toLowerCase();
+    
+    debug('Renderizando view: ' + state.currentView + ' para data: ' + dateStr);
+    
+    if (state.currentView === 'dia') {
+        if (!state.salas.length) {
+            container.innerHTML = '<p style="padding:40px; text-align:center; color:var(--danger);">Nenhuma sala cadastrada.</p>';
+            return;
+        }
+        
+        const dayBookings = state.bookings.filter(b => b.date === dateStr);
+        
+        if (dayBookings.length === 0) {
+            let html = '<div class="empty-day-msg">';
+            html += '<strong>📅 Nenhuma reserva para ' + state.currentDate.toLocaleDateString('pt-BR') + '</strong>';
+            html += 'Clique no <strong>+</strong> em um horário para agendar.<br>';
+            html += '<small>Use as setas ← → para navegar entre datas</small>';
+            html += '</div>';
+            
+            html += '<table><thead><tr><th>Hora</th>' + 
+                state.salas.map(s => '<th>' + getSalaDisplayName(s) + '</th>').join('') + 
+                '</tr></thead><tbody>';
+            
+            HORARIOS.forEach(h => {
+                html += '<tr><td style="font-weight:bold; background:var(--surface2)">' + h + ':00</td>';
+                state.salas.forEach(s => {
+                    html += '<td onclick="openBooking(\'' + dateStr + '\', ' + h + ', \'' + getSalaDisplayName(s) + '\')" style="opacity:0.3; cursor:pointer;">+</td>';
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+            updateStats();
+            return;
+        }
+        
+        let html = '<table><thead><tr><th>Hora</th>' + 
+            state.salas.map((s) => {
+                const fullSalaName = getSalaDisplayName(s);
+                const horasHoje = dayBookings.filter(b => b.sala === fullSalaName).reduce((a,b) => a+b.totalH, 0);
+                const p = Math.min(((horasHoje/15)*100), 100).toFixed(0);
+                return '<th>' + fullSalaName + ' <span class="room-occupancy-badge">' + p + '%</span></th>';
+            }).join('') + 
+            '</tr></thead><tbody>';
+        
+        HORARIOS.forEach(h => {
+            html += '<tr><td style="font-weight:bold; background:var(--surface2)">' + h + ':00</td>';
+            state.salas.forEach((salaObj, index) => {
+                const fullSalaName = getSalaDisplayName(salaObj);
+                const b = dayBookings.find(x => x.sala === fullSalaName && h >= x.hStart && h < x.hEnd);
+                
+                if (b && h === b.hStart) {
+                    const colorIdx = (index % 8) + 1;
+                    const statusBg = STATUS_COLORS[b.status] || '#ffffff';
+                    const isHighlight = searchVal !== "" && (b.profNome + ' ' + (b.segundoProfNome||'')).toLowerCase().includes(searchVal);
+                    const nomePaciente = getNomeClienteDisplay(b);
+                    const tagPaciente = b.clienteId ? '<span class="tag-paciente">📋</span>' : '';
+                    
+                    html += '<td rowspan="' + b.totalH + '">' +
+                        '<div class="slot-booked ' + (isHighlight ? 'highlight' : '') + '" style="background:var(--sala' + colorIdx + '); background-color:' + statusBg + '" onclick="editBooking(' + b.id + ')">' +
+                        b.profNome.split(' ')[0] +
+                        (nomePaciente !== '--' ? '<div class="patient-name">' + nomePaciente + tagPaciente + '</div>' : '') +
+                        (b.segundoProfNome ? '<div class="patient-name" style="color:var(--secondary)">+ ' + b.segundoProfNome + '</div>' : '') +
+                        '<span class="status-tag">' + (b.status || 'CONFIRMADO').toUpperCase() + '</span>' +
+                        '<button class="delete-btn" onclick="event.stopPropagation(); deleteBooking(' + b.id + ')">✕</button>' +
+                        '</div></td>';
+                } else if (!b) {
+                    html += '<td onclick="openBooking(\'' + dateStr + '\', ' + h + ', \'' + fullSalaName + '\')" style="opacity:0.3; cursor:pointer;">+</td>';
+                }
+            });
+            html += '</tr>';
+        });
+        container.innerHTML = html + '</tbody></table>';
+        
+    } else if (state.currentView === 'semana') {
+        let html = '<table><thead><tr><th>Hora</th>';
+        for(let i=0; i<7; i++) {
+            let d = new Date(state.currentDate); d.setDate(d.getDate() + i);
+            html += '<th>' + d.toLocaleDateString('pt-BR', {weekday:'short', day:'numeric'}) + '</th>';
+        }
+        html += '</tr></thead><tbody>';
+        
+        HORARIOS.forEach(h => {
+            html += '<tr><td style="font-weight:bold">' + h + ':00</td>';
+            for(let i=0; i<7; i++) {
+                let d = new Date(state.currentDate); d.setDate(d.getDate() + i);
+                let dStr = d.toISOString().split('T')[0];
+                let daily = state.bookings.filter(x => x.date === dStr && h >= x.hStart && h < x.hEnd);
+                html += '<td>' + daily.map(b => 
+                    '<div style="font-size:9px; background:var(--surface2); margin-bottom:2px; padding:2px; border-radius:3px;">' + 
+                    (b.sala||'').substring(0,8) + ': ' + (b.profNome?b.profNome.split(' ')[0]:'Prof') + 
+                    (getNomeClienteDisplay(b) !== '--' ? ' / ' + getNomeClienteDisplay(b).split(' ')[0] : '') +
+                    (b.segundoProfNome ? ' +' + b.segundoProfNome.split(' ')[0] : '') + 
+                    '</div>'
+                ).join('') + '</td>';
+            }
+            html += '</tr>';
+        });
+        container.innerHTML = html + '</tbody></table>';
+        
+    } else {
+        const list = state.bookings.filter(b => b.date >= dateStr).sort((a,b) => a.date.localeCompare(b.date));
+        container.innerHTML = '<table><thead><tr><th>Data</th><th>Sala</th><th>Profissional</th><th>2º Prof.</th><th>Paciente</th><th>Status</th><th>Ações</th></tr></thead><tbody>' +
+            list.map(b => '<tr>' +
+            '<td>' + b.date + '</td>' +
+            '<td>' + (b.sala || '-') + '</td>' +
+            '<td>' + (b.profNome || '-') + '</td>' +
+            '<td>' + (b.segundoProfNome || '--') + '</td>' +
+            '<td>' + getNomeClienteDisplay(b) + '</td>' +
+            '<td>' + (b.status || 'confirmado') + '</td>' +
+            '<td><button class="btn btn-danger" onclick="deleteBooking(' + b.id + ')">X</button></td></tr>').join('') +
+            '</tbody></table>';
+    }
+    
+    updateStats();
+}
+
+function openBooking(date, hour, sala) { 
+    if (!state.profissionais.length) {
+        alert("⚠️ Cadastre pelo menos um profissional primeiro.");
+        return;
+    }
+    state.editingId = null; 
+    openModal('modal-booking');
+    
+    limparBuscaClienteReserva();
+    
+    document.getElementById('f-date').value = date; 
+    document.getElementById('f-start').value = hour; 
+    document.getElementById('f-end').value = hour + 1; 
+    document.getElementById('f-sala').value = sala; 
+    populateSelectors();
+    const sharedSection = document.getElementById('shared-section');
+    if (sharedSection) {
+        const isPilatesSala = isPilates(sala);
+        sharedSection.style.display = isPilatesSala ? 'block' : 'none';
+        if (isPilatesSala) populateSegundoProfSelect();
+    }
+    document.getElementById('book-title').innerText = "Nova Reserva";
+}
+
+function filterGrid(term) {
+    const termClean = term.toLowerCase().trim();
+    document.querySelectorAll('.slot-booked').forEach(slot => {
+        const text = slot.innerText.toLowerCase();
+        if (termClean !== "" && text.includes(termClean)) {
+            slot.classList.add('highlight');
+            slot.style.opacity = "1";
+        } else if (termClean !== "") {
+            slot.classList.remove('highlight');
+            slot.style.opacity = "0.3";
+        } else {
+            slot.classList.remove('highlight');
+            slot.style.opacity = "1";
+        }
+    });
+}
+// ==========================================
+// PARTE 6: RELATORIO CLIENTE - RESTAURADO v6.3
+// ==========================================
+
+function populateClienteRelatorioSelect() {
+    const select = document.getElementById('rel-cliente-id');
+    if (!select) return;
+    const atual = select.value;
+    select.innerHTML = '<option value="">-- Selecione --</option>' + 
+        state.clientes.sort((a,b) => a.nome.localeCompare(b.nome)).map(c => 
+            '<option value="' + c.id + '">' + c.nome + ' (' + c.celular + ')</option>'
+        ).join('');
+    if (atual) select.value = atual;
+}
+
+function atualizarRelatorioCliente() {
+    const clienteId = parseInt(document.getElementById('rel-cliente-id').value) || null;
+    const tbody = document.getElementById('rel-cliente-body');
+    const resumo = document.getElementById('cliente-resumo-info');
+    
+    if (!clienteId) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px; color: var(--text-muted);">Selecione um paciente para visualizar o histórico</td></tr>';
+        resumo.style.display = 'none';
+        return;
+    }
+    
+    const cliente = buscarClientePorId(clienteId);
+    if (!cliente) return;
+    
+    const de = document.getElementById('rel-cliente-de').value;
+    const ate = document.getElementById('rel-cliente-ate').value;
+    
+    let historico = state.bookings.filter(b => b.clienteId === clienteId).sort((a,b) => b.date.localeCompare(a.date));
+    
+    if (de) historico = historico.filter(b => b.date >= de);
+    if (ate) historico = historico.filter(b => b.date <= ate);
+    
+    document.getElementById('rel-nome-cliente').innerText = cliente.nome;
+    document.getElementById('rel-fone-cliente').innerText = cliente.celular;
+    document.getElementById('rel-cadastro-cliente').innerText = cliente.dataCadastro || '--';
+    
+    const profs = cliente.profissionais || [];
+    const nomesProfs = profs.map(pid => {
+        const p = state.profissionais.find(x => x.id === pid);
+        return p ? p.nome.split(' ')[0] : '';
+    }).filter(n => n).join(', ');
+    document.getElementById('rel-profs-cliente').innerText = nomesProfs || '--';
+    
+    document.getElementById('rel-total-atendimentos').innerText = historico.length;
+    resumo.style.display = 'block';
+    
+    if (historico.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: var(--text-muted);">Nenhum atendimento encontrado no período selecionado.</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = historico.map(b => 
+        '<tr>' +
+        '<td>' + b.date + '</td>' +
+        '<td>' + (b.sala || '-') + '</td>' +
+        '<td>' + b.hStart + 'h - ' + b.hEnd + 'h</td>' +
+        '<td>' + (b.profNome || '-') + (b.segundoProfNome ? ' <br><small>+ ' + b.segundoProfNome + '</small>' : '') + '</td>' +
+        '<td><span style="text-transform:uppercase; font-size:11px; font-weight:bold; color:' + (b.status==='confirmado'?'var(--secondary)':b.status==='falta'?'var(--danger)':'var(--warning)') + '">' + (b.status||'confirmado') + '</span></td>' +
+        '<td style="text-align:left; font-size:12px; max-width: 300px; white-space: pre-wrap;">' + (b.obs || '--') + '</td>' +
+        '</tr>'
+    ).join('');
+}
+
+function exportarPdfCliente() {
+    const clienteId = parseInt(document.getElementById('rel-cliente-id').value) || null;
+    if (!clienteId) return alert("Selecione um paciente primeiro.");
+    
+    const cliente = buscarClientePorId(clienteId);
+    const de = document.getElementById('rel-cliente-de').value || 'Início';
+    const ate = document.getElementById('rel-cliente-ate').value || 'Hoje';
+    
+    let historico = state.bookings.filter(b => b.clienteId === clienteId).sort((a,b) => b.date.localeCompare(a.date));
+    if (de !== 'Início') historico = historico.filter(b => b.date >= de);
+    if (ate !== 'Hoje') historico = historico.filter(b => b.date <= ate);
+    
+    if (historico.length === 0) return alert("Nenhum histórico para exportar.");
+    
+    const { jsPDF } = window.jspdf; 
+    const doc = jsPDF(); 
+    
+    doc.setFontSize(16);
+    doc.text("Prontuário / Histórico do Paciente", 14, 20);
+    doc.setFontSize(10);
+    doc.text("Paciente: " + cliente.nome, 14, 28);
+    doc.text("Celular: " + cliente.celular, 14, 33);
+    
+    const profs = cliente.profissionais || [];
+    const nomesProfs = profs.map(pid => {
+        const p = state.profissionais.find(x => x.id === pid);
+        return p ? p.nome : '';
+    }).filter(n => n).join(', ');
+    doc.text("Profissionais: " + (nomesProfs || '--'), 14, 38);
+    
+    doc.text("Período: " + de + " até " + ate, 14, 43);
+    doc.text("Gerado em: " + new Date().toLocaleString('pt-BR'), 14, 48);
+    
+    doc.autoTable({ 
+        startY: 52, 
+        head: [['Data', 'Sala', 'Horário', 'Profissional', 'Status', 'Observações / Histórico']], 
+        body: historico.map(b => [
+            b.date, 
+            b.sala||'-', 
+            b.hStart+'h-'+b.hEnd+'h', 
+            (b.profNome||'-') + (b.segundoProfNome ? ' + '+b.segundoProfNome : ''), 
+            (b.status||'confirmado').toUpperCase(),
+            b.obs||'--'
+        ]),
+        styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+        headStyles: { fillColor: [24, 95, 165] },
+        columnStyles: { 5: { cellWidth: 80 } }
+    });
+    
+    doc.save('Prontuario_' + cliente.nome.replace(/\s/g,'_') + '_' + new Date().toISOString().split('T')[0] + '.pdf');
+}
+
+// ==========================================
+// PARTE 7: ADMIN, EXPORT, BACKUP
+// ==========================================
+
+function refreshAdminData() {
+    const period = document.getElementById('adm-period').value;
+    const now = new Date();
+    let filtered = [...state.bookings];
+    
+    if (period === 'mes') {
+        filtered = filtered.filter(b => {
+            const d = new Date(b.date + 'T00:00:00');
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        });
+    }
+
+    const confirmed = filtered.filter(b => b.status === 'confirmado');
+    const totalFaturamento = confirmed.reduce((acc, b) => acc + (b.totalH * (b.valorHoraAplicado || 65)), 0);
+    document.getElementById('adm-total-faturamento').innerText = 'R$ ' + totalFaturamento.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+
+    document.getElementById('admin-rateio-body').innerHTML = state.profissionais.map(p => {
+        const pBooks = confirmed.filter(b => b.profId === p.id || b.segundoProfId === p.id);
+        const h = pBooks.reduce((acc, b) => acc + b.totalH, 0);
+        const pFat = pBooks.reduce((acc, b) => acc + (b.totalH * (b.valorHoraAplicado || 65)), 0);
+        return '<tr><td><strong>' + p.nome + '</strong></td><td>' + h + 'h</td><td style="color:var(--secondary);">R$ ' + pFat.toLocaleString('pt-BR', {minimumFractionDigits: 2}) + '</td><td>' + (pBooks.length ? pBooks.sort((a,b) => b.date.localeCompare(a.date))[0].date : '---') + '</td></tr>';
+    }).join('') || '<tr><td colspan="4">Nenhum dado</td></tr>';
+
+    const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    document.getElementById('dash-rep1').innerHTML = state.salas.map(s => {
+        const n = getSalaDisplayName(s);
+        const hSemana = confirmed.filter(b => b.sala === n && new Date(b.date) >= startOfWeek).reduce((a,b) => a+b.totalH, 0);
+        const hMes = confirmed.filter(b => b.sala === n && new Date(b.date) >= startOfMonth).reduce((a,b) => a+b.totalH, 0);
+        return '<tr><td>' + s.nome + '</td><td>' + Math.min(((hSemana/(15*7))*100),100).toFixed(1) + '%</td><td>' + Math.min(((hMes/(15*30))*100),100).toFixed(1) + '%</td></tr>';
+    }).join('');
+
+    document.getElementById('dash-rep2').innerHTML = state.salas.map(s => {
+        const n = getSalaDisplayName(s);
+        const unique = new Set(state.bookings.filter(b => b.sala === n && b.clienteId).map(b => b.clienteId));
+        return '<tr><td>' + s.nome + '</td><td>' + unique.size + ' vinculados</td></tr>';
+    }).join('');
+
+    document.getElementById('dash-rep3').innerHTML = state.profissionais.map(p => {
+        const faltas = state.bookings.filter(b => b.profId === p.id && b.status === 'falta').length;
+        return '<tr><td>' + p.nome + '</td><td>' + faltas + '</td></tr>';
+    }).join('');
+
+    const totalGeral = state.bookings.reduce((a,b) => a + b.totalH, 0) || 1;
+    document.getElementById('dash-rep4').innerHTML = state.profissionais.map(p => {
+        const hProf = state.bookings.filter(b => b.profId === p.id).reduce((a,b) => a+b.totalH, 0);
+        return '<tr><td>' + p.nome + '</td><td>' + ((hProf/totalGeral)*100).toFixed(1) + '%</td></tr>';
+    }).join('');
+
+    let auditHTML = state.bookings.slice().reverse().slice(0, 50).map(b => 
+        '<tr style="background:#d4edda"><td>' + (b.createdAt || 'N/A') + '</td><td><strong>CRIAR</strong></td><td>' + b.profNome + (b.segundoProfNome ? ' + ' + b.segundoProfNome : '') + '</td><td>' + b.sala + ' / ' + b.date + (b.patient ? ' ('+b.patient+')' : '') + '</td><td>' + (b.ip || 'N/A') + '</td></tr>'
+    ).join('');
+    
+    auditHTML += state.deletions.slice().reverse().slice(0, 50).map(d => 
+        '<tr style="background:#f8d7da"><td>' + (d.deletedAt || 'N/A') + '</td><td><strong>EXCLUIR</strong></td><td>' + (d.profNome || 'N/A') + (d.segundoProfNome ? ' + ' + d.segundoProfNome : '') + '</td><td>' + (d.sala || 'N/A') + ' / ' + (d.date || 'N/A') + (d.patient ? ' ('+d.patient+')' : '') + '</td><td>' + (d.ip || 'N/A') + '</td></tr>'
+    ).join('');
+    
+    document.getElementById('admin-audit-body').innerHTML = auditHTML || '<tr><td colspan="5" style="text-align:center">Nenhum registro</td></tr>';
+}
+
+function processExport(download) { 
+    const period = document.getElementById('exp-period').value;
+    const salaFiltro = document.getElementById('exp-sala').value;
+    let filtered = [...state.bookings];
+    
+    if (period === 'dia') {
+        filtered = filtered.filter(b => b.date === new Date().toISOString().split('T')[0]);
+    } else if (period === 'mes') {
+        const now = new Date();
+        filtered = filtered.filter(b => {
+            const d = new Date(b.date + 'T00:00:00');
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        });
+    }
+    
+    if (salaFiltro !== 'todas') {
+        filtered = filtered.filter(b => b.sala === salaFiltro);
+    }
+    
+    const previewBody = document.getElementById('export-preview-body');
+    if (previewBody) {
+        previewBody.innerHTML = filtered.map(b => 
+            '<tr><td>' + (b.sala||'-') + '</td><td>' + b.hStart + 'h-' + b.hEnd + 'h</td><td>' + (b.profNome||'-') + (b.segundoProfNome ? ' + ' + b.segundoProfNome : '') + '</td><td>' + b.date + '</td></tr>'
+        ).join('') || '<tr><td colspan="4">Nenhum resultado</td></tr>';
+    }
+    
+    if (download && filtered.length > 0) {
+        const { jsPDF } = window.jspdf; 
+        const doc = jsPDF(); 
+        doc.text("FisioSalas v6.4.1 - Relatório de Atendimentos", 14, 15);
+        doc.setFontSize(10);
+        doc.text("Período: " + period.toUpperCase() + " | Sala: " + (salaFiltro==='todas'?'Todas':salaFiltro), 14, 22);
+        doc.text("Gerado em: " + new Date().toLocaleString('pt-BR'), 14, 27);
+        
+        doc.autoTable({ 
+            startY: 32, 
+            head: [['Data', 'Sala', 'Horário', 'Profissional', '2º Prof.', 'Paciente', 'Status', 'Obs']], 
+            body: filtered.map(b => [
+                b.date, 
+                b.sala||'-', 
+                b.hStart+'h-'+b.hEnd+'h', 
+                b.profNome||'-', 
+                b.segundoProfNome||'--', 
+                getNomeClienteDisplay(b),
+                (b.status||'confirmado').toUpperCase(),
+                b.obs||'--'
+            ]),
+            styles: { fontSize: 9, cellPadding: 2 },
+            headStyles: { fillColor: [24, 95, 165] }
+        });
+        
+        doc.save('FisioSalas_Relatorio_' + new Date().toISOString().split('T')[0] + '.pdf');
+    } else if (download) {
+        alert('Nenhum dado para exportar');
+    }
+}
+
+function exportBackup() {
+    const backupData = { 
+        ...state, 
+        exportDate: new Date().toLocaleString('pt-BR'),
+        currentDate: state.currentDate.toISOString()
+    };
+    
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+    const dl = document.createElement('a'); 
+    dl.setAttribute("href", dataStr); 
+    dl.setAttribute("download", "backup_fisiosalas_" + new Date().toISOString().split('T')[0] + ".json"); 
+    document.body.appendChild(dl);
+    dl.click();
+    document.body.removeChild(dl);
+}
+
+function importBackup(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (!confirm("⚠️ Isso vai substituir TODOS os dados atuais.\n\nContinuar?")) return;
+            
+            if (!data || typeof data !== 'object') throw new Error('Arquivo inválido');
+            
+            state.profissionais = Array.isArray(data.profissionais) ? data.profissionais : []; 
+            state.bookings = Array.isArray(data.bookings) ? data.bookings : [];
+            state.deletions = Array.isArray(data.deletions) ? data.deletions : [];
+            state.clientes = Array.isArray(data.clientes) ? data.clientes : [];
+            state.salas = Array.isArray(data.salas) && data.salas.length > 0 ? data.salas : state.salas; 
+            state.config = data.config && data.config.adminPass ? data.config : state.config;
+            
+            if (data.currentDate) state.currentDate = new Date(data.currentDate);
+            else state.currentDate = new Date();
+            
+            normalizeStateDates();
+            saveToCloud();
+            populateSelectors(); 
+            render(); 
+            alert("✅ Backup restaurado e sincronizado!");
+            
+        } catch (err) { 
+            alert("❌ Arquivo inválido ou corrompido: " + err.message); 
+        }
+    };
+    reader.readAsText(file);
+}
+
+function changeSystemPasswords() {
+    const newAdmin = document.getElementById('new-admin-pass').value.trim();
+    const newMaster = document.getElementById('new-master-pass').value.trim();
+    const contra = document.getElementById('sys-contra-senha').value;
+    
+    if (contra !== CONTRA_SENHA_SISTEMA) return alert("❌ Contra Senha Inválida!");
+    
+    if (newAdmin) state.config.adminPass = newAdmin;
+    if (newMaster) state.config.masterKey = newMaster;
+    
+    saveToCloud(); 
+    alert("✅ Senhas atualizadas com sucesso!");
+    
+    document.getElementById('new-admin-pass').value = '';
+    document.getElementById('new-master-pass').value = '';
+    document.getElementById('sys-contra-senha').value = '';
+}
+
+// ==========================================
+// PARTE 8: PROFISSIONAIS E SALAS
+// ==========================================
+
+function saveProf() {
+    const id = document.getElementById('p-id').value;
+    const nome = document.getElementById('p-nome').value.trim();
+    const pass = document.getElementById('p-pass').value.trim();
+    
+    if (!nome || pass.length < 8) return alert("Nome e senha (mín. 8 caracteres) obrigatórios.");
+
+    if (!id) {
+        if (prompt("Senha Master:") !== state.config.masterKey) return alert("Senha Master incorreta.");
+    } else {
+        const profAtual = state.profissionais.find(p => p.id == id);
+        if (!profAtual) return;
+        const senhaDigitada = prompt("Senha pessoal ou Admin:");
+        if (senhaDigitada !== profAtual.pass && senhaDigitada !== state.config.adminPass) {
+            return alert("Sem permissão.");
+        }
+    }
+    
+    if (id) {
+        state.profissionais = state.profissionais.map(p => p.id == id ? { ...p, nome, pass } : p);
+    } else {
+        state.profissionais.push({ id: Date.now(), nome, pass });
+    }
+    
+    saveToCloud();
+    resetProfForm();
+    renderProfList();
+    populateSelectors();
+    alert("✅ Profissional salvo!");
+}
+
+function editProf(id) {
+    const p = state.profissionais.find(x => x.id == id);
+    if (!p) return;
+    document.getElementById('p-id').value = p.id;
+    document.getElementById('p-nome').value = p.nome;
+    document.getElementById('p-pass').value = p.pass;
+    document.getElementById('btn-cancel-edit').style.display = "inline-flex";
+    document.getElementById('prof-modal-title').innerText = "Editar Profissional";
+}
+
+function removeProf(id) { 
+    if (!confirm("Remover profissional?")) return;
+    const profAtual = state.profissionais.find(p => p.id === id);
+    if (!profAtual) return;
+    const senhaDigitada = prompt("Senha pessoal ou Admin:");
+    if (senhaDigitada !== profAtual.pass && senhaDigitada !== state.config.adminPass) {
+        return alert("Sem permissão.");
+    }
+    state.profissionais = state.profissionais.filter(p => p.id !== id); 
+    saveToCloud();
+    renderProfList();
+    populateSelectors();
+    alert("✅ Removido!");
+}
+
+function resetProfForm() { 
+    document.getElementById('p-id').value = "";
+    document.getElementById('p-nome').value = "";
+    document.getElementById('p-pass').value = "";
+    document.getElementById('btn-cancel-edit').style.display = "none";
+    document.getElementById('prof-modal-title').innerText = "Gestão de Profissionais";
+}
+
+function renderProfList() {
+    const tbody = document.getElementById('prof-list-body');
+    if (!tbody) return;
+    tbody.innerHTML = state.profissionais.map(p => 
+        '<tr><td><strong>' + p.nome + '</strong></td><td>' +
+        '<button class="btn btn-primary" onclick="editProf(' + p.id + ')">Editar</button> ' +
+        '<button class="btn btn-danger" onclick="removeProf(' + p.id + ')">X</button></td></tr>'
+    ).join('') || '<tr><td colspan="2">Nenhum profissional cadastrado</td></tr>';
+}
+
+function saveSala() {
+    const nome = document.getElementById('new-sala-name').value.trim();
+    const apelido = document.getElementById('new-sala-nick').value.trim();
+    const valor = parseFloat(document.getElementById('new-sala-value').value) || 65;
+    const idx = parseInt(document.getElementById('edit-sala-idx').value);
+    
+    if (!nome) return alert("Digite o nome da sala.");
+
+    if (idx === -1) {
+        if (state.salas.some(s => s.nome.toLowerCase() === nome.toLowerCase())) return alert("Sala já existe.");
+        state.salas.push({ nome, apelido, valor });
+    } else {
+        const oldName = getSalaDisplayName(state.salas[idx]);
+        state.salas[idx] = { nome, apelido, valor };
+        const newName = getSalaDisplayName(state.salas[idx]);
+        if (oldName !== newName) {
+            state.bookings = state.bookings.map(b => (b.sala === oldName ? { ...b, sala: newName } : b));
+        }
+    }
+    
+    saveToCloud(); 
+    resetSalaForm(); 
+    renderSalasList(); 
+    populateSelectors(); 
+    render();
+    alert("✅ Sala salva!");
+}
+
+function renderSalasList() {
+    const tbody = document.getElementById('admin-salas-body');
+    if (!tbody) return;
+    tbody.innerHTML = state.salas.map((s, idx) => 
+        '<tr><td><strong>' + s.nome + '</strong></td><td>' + (s.apelido || '--') + '</td><td>R$ ' + parseFloat(s.valor).toFixed(2) + '</td><td>' +
+        '<button class="btn btn-primary" onclick="editSala(' + idx + ')">Editar</button> ' +
+        '<button class="btn btn-danger" onclick="removeSala(' + idx + ')">X</button></td></tr>'
+    ).join('');
+}
+
+function editSala(index) {
+    const s = state.salas[index];
+    if (!s) return;
+    document.getElementById('edit-sala-idx').value = index;
+    document.getElementById('new-sala-name').value = s.nome;
+    document.getElementById('new-sala-nick').value = s.apelido || '';
+    document.getElementById('new-sala-value').value = s.valor;
+    document.getElementById('sala-form-title').innerText = "Editar Sala";
+    document.getElementById('btn-cancel-sala').style.display = "inline-flex";
+}
+
+function resetSalaForm() {
+    document.getElementById('edit-sala-idx').value = "-1";
+    document.getElementById('new-sala-name').value = "";
+    document.getElementById('new-sala-nick').value = "";
+    document.getElementById('new-sala-value').value = "65";
+    document.getElementById('sala-form-title').innerText = "Adicionar Nova Sala";
+    document.getElementById('btn-cancel-sala').style.display = "none";
+}
+
+function removeSala(index) { 
+    if (!confirm('Remover sala permanentemente?')) return; 
+    if (prompt("Senha Master:") === state.config.masterKey) { 
+        state.salas.splice(index, 1); 
+        saveToCloud(); 
+        renderSalasList(); 
+        populateSelectors(); 
+        render(); 
+    } else alert("Senha incorreta.");
+}
+
+// ==========================================
+// PARTE 9: MODAIS E NAVEGACAO
+// ==========================================
+
+function openModal(id) { 
+    const el = document.getElementById(id);
+    if (!el) {
+        debug('ERRO: Modal ' + id + ' não encontrado');
+        return;
+    }
+    el.classList.add('active'); 
+    if(id === 'modal-prof') renderProfList(); 
+    if(id === 'modal-admin') refreshAdminData(); 
+    if(id === 'modal-booking') {
+        document.getElementById('book-title').innerText = state.editingId ? "Editar Reserva" : "Nova Reserva";
+        const recCheck = document.getElementById('f-recurrent');
+        if (recCheck) {
+            recCheck.checked = false;
+            recCheck.disabled = !!state.editingId;
+        }
+        const recOpts = document.getElementById('recurrent-options');
+        if (recOpts) recOpts.style.display = 'none';
+    }
+    if(id === 'modal-export') {
+        const expSala = document.getElementById('exp-sala');
+        if (expSala) {
+            expSala.innerHTML = '<option value="todas">Todas as Salas</option>' + 
+                state.salas.map(s => '<option value="' + getSalaDisplayName(s) + '">' + getSalaDisplayName(s) + '</option>').join('');
+        }
+    }
+    if(id === 'modal-cliente') {
+        renderClienteList();
+    }
+    if(id === 'modal-cliente-relatorio') {
+        populateClienteRelatorioSelect();
+    }
+}
+
+function closeModal(id) { 
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('active'); 
+    if (id === 'modal-booking') {
+        state.editingId = null;
+        resetBookingForm();
+    }
+}
+
+function resetBookingForm() {
+    document.getElementById('f-patient').value = '';
+    document.getElementById('f-obs').value = '';
+    document.getElementById('f-auth').value = '';
+    const rec = document.getElementById('f-recurrent');
+    if (rec) { rec.checked = false; rec.disabled = false; }
+    const recOpts = document.getElementById('recurrent-options');
+    if (recOpts) recOpts.style.display = 'none';
+    const shared = document.getElementById('shared-section');
+    if (shared) shared.style.display = 'none';
+}
+
+function openAdmin() {
+    const pass = prompt("Senha Administrativa:");
+    if (pass === state.config.adminPass) { 
+        openModal('modal-admin'); 
+    } else { 
+        alert("❌ Acesso Negado."); 
+    }
+}
+
+function switchAdminTab(target) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const pane = document.getElementById('pane-' + target);
+    if (pane) pane.classList.add('active');
+    const btn = document.getElementById('btn-tab-' + target);
+    if (btn) btn.classList.add('active');
+    if (target === 'config') { resetSalaForm(); renderSalasList(); }
+    if (target === 'dashboard' || target === 'rateio' || target === 'auditoria') refreshAdminData();
+}
+
+function changeDate(d) { 
+    state.currentDate.setDate(state.currentDate.getDate() + d); 
+    updateDate(state.currentDate.toISOString().split('T')[0]); 
+}
+
+function goToday() { 
+    updateDate(new Date().toISOString().split('T')[0]); 
+}
+
+function toggleTheme() { 
+    const d = document.documentElement; 
+    d.setAttribute('data-theme', d.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); 
+}
+
+function changeView(v) { 
+    state.currentView = v; 
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.id === 'btn-view-' + v)); 
+    render(); 
+}
+
+function updateDate(val) { 
+    state.currentDate = new Date(val + 'T00:00:00'); 
+    document.getElementById('date-picker').value = val; 
+    document.getElementById('current-label').innerText = state.currentDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }); 
+    render(); 
+}
+
+// ==========================================
+// PARTE 10: INICIALIZACAO
+// ==========================================
+
+window.onload = function() {
+    debug('=== INICIALIZACAO v6.4.1 + MODULO CLIENTE RESTAURADO ===');
+    
+    const today = new Date();
+    state.currentDate = new Date();
+    
+    const datePicker = document.getElementById('date-picker');
+    const currentLabel = document.getElementById('current-label');
+    
+    if (datePicker) datePicker.value = today.toISOString().split('T')[0];
+    if (currentLabel) {
+        currentLabel.innerText = today.toLocaleDateString('pt-BR', { 
+            weekday: 'long', day: 'numeric', month: 'long' 
+        });
+    }
+    
+    const container = document.getElementById('main-content');
+    if (container) {
+        container.innerHTML = '<p style="padding:40px; text-align:center; color:var(--primary); font-size:16px;">' +
+            '☁️ Conectando à nuvem...<br><small style="color:var(--text-muted)">Aguarde alguns segundos</small></p>';
+    }
+    
+    loadFromLocalStorage();
+    
+    setTimeout(function() {
+        debug('Iniciando fetchFromCloud...');
+        fetchFromCloud(false);
+    }, 500);
+};
+</script>
+</body>
+</html>
